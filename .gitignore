@@ -1,0 +1,19 @@
+# Ignorar dependências do Node (em qualquer subpasta)
+**/node_modules/
+**/dist/
+**/build/
+
+# Ignorar Python e Ambientes Virtuais
+**/.venv/
+**/venv/
+**/__pycache__/
+*.py[cod]
+.env
+
+# Banco de dados local (se tiver)
+*.sqlite3
+postgres-data/
+
+# Outros
+.DS_Store
+Leiame.txt
