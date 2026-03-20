@@ -8,12 +8,18 @@
 **/venv/
 **/__pycache__/
 *.py[cod]
+*$py.class
 .env
 
-# Banco de dados local (se tiver)
-*.sqlite3
+# Docker
+.dockerignore
 postgres-data/
+pgdata/
 
 # Outros
 .DS_Store
 Leiame.txt
+fonte_energia.ods
+.vscode/
+.idea/
+.env

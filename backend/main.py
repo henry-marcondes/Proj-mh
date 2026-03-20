@@ -5,15 +5,24 @@ from database import SessionLocal, ClienteDB, criar_tabelas, Base
 from database import FonteEnergiaDB, EquipamentoDB, engine
 from pydantic import BaseModel
 from typing import List, Optional
+from contextlib import asynccontextmanager
 
 # Importando do seu arquivo de lógica
 
-from database import SessionLocal, ClienteDB, criar_tabelas
 from calculo_solar import simular_dia_sequencial
 
-Base.metadata.create_all(bind=engine)
+#
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # O que colocar aqui roda quando o app LIGA
+    print("🚀 Iniciando o sistema: Criando tabelas...")
+    criar_tabelas()
+    
+    yield  # Aqui o app fica rodando
+    
+
+app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -24,7 +33,7 @@ app.add_middleware(
 )
 
 # Criar tabelas ao iniciar
-criar_tabelas()
+#criar_tabelas()
 
 # Dependência para abrir/fechar conexão com o banco
 def get_db():
@@ -57,6 +66,37 @@ class SimulacaoSchema(BaseModel):
     clima: str # "sol", "nublado" ou "chuva"
     equipamentos: List[Equipamentos]
     carga_inicial_wh: Optional[float] = None
+
+class FonteEnergiaSchema(BaseModel):
+    cliente_id: int | None = None  # Opcional por enquanto para teste
+    painel_watts: float
+    tipo_controlador: str
+    bateria_ah: int
+    bateria_tipo: str
+    conversor_acdc_amperes: float
+    dcdc_amperes: float
+    publico: bool = True
+
+@app.post("/fontes/")
+def criar_fonte(dados: FonteEnergiaSchema, db: Session = Depends(get_db)):
+    nova_fonte = FonteEnergiaDB(
+        cliente_id=dados.cliente_id,
+        painel_watts=dados.painel_watts,
+        tipo_controlador=dados.tipo_controlador,
+        bateria_ah=dados.bateria_ah,
+        bateria_tipo=dados.bateria_tipo,
+        conversor_acdc_amperes=dados.conversor_acdc_amperes,
+        dcdc_amperes=dados.dcdc_amperes,
+        publico=dados.publico
+    )
+    db.add(nova_fonte)
+    db.commit()
+    db.refresh(nova_fonte)
+    return nova_fonte
+
+@app.get("/fontes/")
+def listar_fontes(db: Session = Depends(get_db)):
+    return db.query(FonteEnergiaDB).all()    
 
 @app.post("/clientes/", status_code=status.HTTP_201_CREATED)
 def criar_cliente(cliente: ClienteSchema, db: Session = Depends(get_db)):
