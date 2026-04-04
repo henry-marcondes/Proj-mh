@@ -27,4 +27,4 @@ O projeto utiliza uma arquitetura moderna baseada em microserviços e containers
 1. Certifique-se de ter o **Docker** e **Docker Compose** instalados.
 2. Clone o repositório:
    ```bash
-   git clone [https://github.com/SEU_USUARIO/NOME_DO_REPO.git](https://github.com/SEU_USUARIO/NOME_DO_REPO.git)
+   git clone [https://github.com/henry-marcondes/Proj-mh.git](https://github.com/henry-marcondes/Proj-mh.git)

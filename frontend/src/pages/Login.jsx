@@ -24,7 +24,7 @@ function Login() {
   };
 
   return (
-    <div style={{ maxWidth: '400px', margin: '100px auto', padding: '30px', backgroundColor: 'white', borderRadius: '10px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+    <div style={{ maxWidth: '400px', margin: '100px auto', padding: '30px', backgroundColor: 'var(--bg)', color: 'card(--text)', borderRadius: '10px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
       <h2 style={{ textAlign: 'center' }}>🚐 Solar MH Login</h2>
       <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
         <input 
@@ -34,7 +34,7 @@ function Login() {
           style={{ padding: '12px', borderRadius: '5px', border: '1px solid #ccc' }}
           required
         />
-        <button type="submit" style={{ padding: '12px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
+        <button type="submit" style={{ padding: '12px', backgroundColor: 'var(--card)', color: 'var(--text)', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
           ENTRAR
         </button>
         {erro && <p style={{ color: 'red', fontSize: '14px' }}>{erro}</p>}

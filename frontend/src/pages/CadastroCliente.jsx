@@ -24,7 +24,7 @@ function CadastroCliente() {
   };
 
   return (
-    <div style={{ maxWidth: '500px', margin: '0 auto', padding: '20px', backgroundColor: 'white', borderRadius: '8px', boxShadow: '0 2px 10px rgba(0,0,0,0.1)' }}>
+    <div style={{ maxWidth: '500px', margin: '0 auto', padding: '20px', backgroundColor: 'var(--bg)', color: 'var(--text)', borderRadius: '8px', boxShadow: '0 2px 10px rgba(0,0,0,0.1)' }}>
       <h1>👤 Cadastro de Cliente</h1>
       
       {mensagem.texto && (
@@ -73,8 +73,8 @@ function CadastroCliente() {
           type="submit" 
           style={{ 
             padding: '12px', 
-            backgroundColor: '#007bff', 
-            color: 'white', 
+            backgroundColor: 'var(--card)', 
+            color: 'var(--text)', 
             border: 'none', 
             borderRadius: '5px', 
             cursor: 'pointer',

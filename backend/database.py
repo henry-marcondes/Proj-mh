@@ -16,12 +16,14 @@ class ClienteDB(Base):
     email = Column(String, unique=True)
     cpf = Column(String, unique=True)
     fone = Column(String, unique=False, nullable=True)
-    fontes_energia = relationship("FonteEnergiaDB", back_populates="usuario")
+    # ✅ FIX: Nomenclatura consistente
+    fontes_energia = relationship("FonteEnergiaDB", back_populates="cliente")
 
 class FonteEnergiaDB(Base):
     __tablename__ = "fontes_energia"
     id = Column(Integer, primary_key=True, index=True)
-    cliente_id = Column(Integer, ForeignKey("clientes.id"), unique=True)
+    # ✅ FIX: Adicionar nullable=False para garantir integridade
+    cliente_id = Column(Integer, ForeignKey("clientes.id"), nullable=False, unique=False)
  
     # Placas Solares
     painel_watts = Column(Float, default=0.0)
@@ -31,22 +33,22 @@ class FonteEnergiaDB(Base):
     bateria_ah = Column(Integer, default=0)
     bateria_tipo = Column(String) # "Lítio" ou "Estacionária"
     
-    # Carregador AC-DC (O que você mencionou)
-    conversor_acdc_amperes = Column(Float, default=0.0) # Ex: Carregador de 30A
+    # Carregador AC-DC
+    conversor_acdc_amperes = Column(Float, default=0.0)
     
     # DC-DC (Alternador)
-    dcdc_amperes = Column(Float, default=0.0) # Carga via motor do carro
+    dcdc_amperes = Column(Float, default=0.0)
 
-    # Campo para privacidade dos dados do cliente
+    # Campo para privacidade dos dados
     publico = Column(Boolean, default=True)
 
-    # Relacionamento com Usuário
-    usuario = relationship("ClienteDB", back_populates="fontes_energia")
+    # ✅ FIX: Nomenclatura consistente com ClienteDB
+    cliente = relationship("ClienteDB", back_populates="fontes_energia")
 
 class EquipamentoDB(Base):
     __tablename__ = "equipamentos"
     id = Column(Integer, primary_key=True, index=True)
-    cliente_id = Column(Integer, ForeignKey("clientes.id"))
+    cliente_id = Column(Integer, ForeignKey("clientes.id"), nullable=False)
     nome = Column(String)
     watts = Column(Float)
     hora_inicio = Column(Integer)
@@ -63,5 +65,4 @@ def criar_tabelas():
         except OperationalError:
             retentativas -= 1
             print(f"⏳ Banco ainda não pronto... tentando novamente ({retentativas} restantes)")
-            time.sleep(4) # Espera 4 segundos antes de tentar de novo
- 
+            time.sleep(4)

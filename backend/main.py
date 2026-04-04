@@ -6,12 +6,7 @@ from database import FonteEnergiaDB, EquipamentoDB, engine
 from pydantic import BaseModel
 from typing import List, Optional
 from contextlib import asynccontextmanager
-
-# Importando do seu arquivo de lógica
-
 from calculo_solar import simular_dia_sequencial
-
-#
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -79,24 +74,68 @@ class FonteEnergiaSchema(BaseModel):
 
 @app.post("/fontes/")
 def criar_fonte(dados: FonteEnergiaSchema, db: Session = Depends(get_db)):
-    nova_fonte = FonteEnergiaDB(
-        cliente_id=dados.cliente_id,
-        painel_watts=dados.painel_watts,
-        tipo_controlador=dados.tipo_controlador,
-        bateria_ah=dados.bateria_ah,
-        bateria_tipo=dados.bateria_tipo,
-        conversor_acdc_amperes=dados.conversor_acdc_amperes,
-        dcdc_amperes=dados.dcdc_amperes,
-        publico=dados.publico
-    )
-    db.add(nova_fonte)
-    db.commit()
-    db.refresh(nova_fonte)
-    return nova_fonte
+    # ✅ FIX: Validar cliente_id antes de tudo
+    if not dados.cliente_id or dados.cliente_id <= 0:
+        raise HTTPException(
+            status_code=400, 
+            detail="cliente_id é obrigatório e deve ser válido"
+        )
+    
+    # ✅ FIX: Verificar se cliente existe
+    cliente = db.query(ClienteDB).filter(ClienteDB.id == dados.cliente_id).first()
+    if not cliente:
+        raise HTTPException(
+            status_code=404, 
+            detail=f"Cliente com ID {dados.cliente_id} não encontrado"
+        )
+    
+    try:
+        nova_fonte = FonteEnergiaDB(
+            cliente_id=dados.cliente_id,
+            painel_watts=dados.painel_watts,
+            tipo_controlador=dados.tipo_controlador,
+            bateria_ah=dados.bateria_ah,
+            bateria_tipo=dados.bateria_tipo,
+            conversor_acdc_amperes=dados.conversor_acdc_amperes,
+            dcdc_amperes=dados.dcdc_amperes,
+            publico=dados.publico
+        )
+        db.add(nova_fonte)
+        db.commit()
+        db.refresh(nova_fonte)
+        return nova_fonte
+    except Exception as e:
+        db.rollback()
+        print(f"❌ Erro ao salvar fonte: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Erro ao salvar configuração: {str(e)}"
+        )
 
+# 1. Primeiro a rota de lista (Mais genérica)
 @app.get("/fontes/")
-def listar_fontes(db: Session = Depends(get_db)):
-    return db.query(FonteEnergiaDB).all()    
+def listar_todas_fontes(db: Session = Depends(get_db)):
+    return db.query(FonteEnergiaDB).all()
+
+# 2. Depois a rota por ID de Fonte (Específica)
+@app.get("/fontes/{fonte_id}") # Adicionada a / aqui!
+def buscar_fonte(fonte_id: int, db: Session = Depends(get_db)):
+    fonte = db.query(FonteEnergiaDB).filter(FonteEnergiaDB.id == fonte_id).first()
+    if not fonte:
+        raise HTTPException(status_code=404, detail="Fonte não Encontrada")
+    return fonte 
+
+# 3. E a rota do Cliente (Relacional)
+@app.get("/clientes/{cliente_id}/fontes/")
+def listar_fontes_do_cliente(cliente_id: int, db: Session = Depends(get_db)):
+    return db.query(FonteEnergiaDB).filter(FonteEnergiaDB.cliente_id == cliente_id).all()
+
+@app.get("/clientes/{cliente_id}")
+def buscar_cliente_por_id(cliente_id: int, db: Session = Depends(get_db)):
+    cliente = db.query(ClienteDB).filter(ClienteDB.id == cliente_id).first()
+    if not cliente:
+        raise HTTPException(status_code=404, detail="Cliente não encontrado")
+    return cliente
 
 @app.post("/clientes/", status_code=status.HTTP_201_CREATED)
 def criar_cliente(cliente: ClienteSchema, db: Session = Depends(get_db)):
@@ -139,6 +178,48 @@ def login(dados: dict, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
     
     return {"id": cliente.id, "nome": cliente.nome}
+
+# ✅ NOVO: Buscar equipamentos de um cliente
+@app.get("/clientes/{cliente_id}/equipamentos/")
+def listar_equipamentos_do_cliente(cliente_id: int, db: Session = Depends(get_db)):
+    equipamentos = db.query(EquipamentoDB).filter(
+        EquipamentoDB.cliente_id == cliente_id
+    ).all()
+    return equipamentos
+
+# ✅ NOVO: Deletar um equipamento específico
+@app.delete("/equipamentos/{equipamento_id}")
+def deletar_equipamento(equipamento_id: int, db: Session = Depends(get_db)):
+    equipamento = db.query(EquipamentoDB).filter(
+        EquipamentoDB.id == equipamento_id
+    ).first()
+    
+    if not equipamento:
+        raise HTTPException(status_code=404, detail="Equipamento não encontrado")
+    
+    db.delete(equipamento)
+    db.commit()
+    return {"status": "sucesso", "mensagem": "Equipamento deletado"}
+
+
+# ✅ NOVO: Atualizar equipamento (CORRIGIDO)
+@app.put("/equipamentos/{equipamento_id}")
+def atualizar_equipamento(equipamento_id: int, dados: Equipamentos, db: Session = Depends(get_db)):
+    equipamento = db.query(EquipamentoDB).filter(
+        EquipamentoDB.id == equipamento_id
+    ).first()
+    
+    if not equipamento:
+        raise HTTPException(status_code=404, detail="Equipamento não encontrado")
+    
+    # ✅ FIX: Usar update com dictionary
+    for key, value in dados.model_dump().items():
+        if hasattr(equipamento, key):
+            setattr(equipamento, key, value)
+    
+    db.commit()
+    db.refresh(equipamento)
+    return equipamento
 
 @app.post("/equipamentos/")
 def salvar_equipamentos(dados: InventarioSchema, db: Session = Depends(get_db)):

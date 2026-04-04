@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'; // Importe os hooks
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import ToggleTheme from '../context/ToggleTheme.jsx';
 
 // Seus imports de páginas...
 import CadastroCliente from './CadastroCliente';
@@ -7,6 +8,7 @@ import Equipamentos from './Equipamentos.jsx';
 import FontesEnergia from './FontesEnergia';
 import Simulador from './Simulador';
 import Login from './Login';
+import PainelControle from './PainelControle';
 
 function App() {
   // 1. Crie um estado para o nome do cliente
@@ -26,6 +28,7 @@ function App() {
 
   return (
     <Router>
+      < ToggleTheme />
       <div style={{ display: 'flex', minHeight: '100vh' }}>
         {/* Menu Lateral */}
         <nav style={{ width: '250px', backgroundColor: '#2c3e50', color: 'white', padding: '20px' }}>
@@ -53,6 +56,7 @@ function App() {
             <li style={{ margin: '15px 0' }}><Link to="/clientes" style={{ color: 'white', textDecoration: 'none' }}>👤 Cadastro Clientes</Link></li>
             <li style={{ margin: '15px 0' }}><Link to="/fontes" style={{ color: 'white', textDecoration: 'none' }}>⚡ Fontes de Energia</Link></li>
             <li style={{ margin: '15px 0' }}><Link to="/equipamentos" style={{ color: 'white', textDecoration: 'none' }}>🔌 Equipamentos</Link></li>
+	    <li style={{ margin: '15px 0'}}><Link to="/painelcontrole" style={{ color: 'white', textDecoration: 'none'}}> Painel Controle</Link></li>
           </ul>
         </nav>
 
@@ -64,6 +68,7 @@ function App() {
             <Route path="/fontes" element={<FontesEnergia />} />
             <Route path="/equipamentos" element={<Equipamentos />} />
             <Route path="/login" element={<Login />} />
+	    <Route path="/painelcontrole" element={<PainelControle />} />
           </Routes>
         </main>
       </div>

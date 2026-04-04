@@ -8,8 +8,8 @@ def test_criar_cliente_com_sucesso():
     payload = {
         "nome": "Marco Antonio",
         "email": "marcoantonio@gmail.com",
-        "cpf": "12345678904",
-        "fone": "11999999997"
+        "cpf": "123456789-04",
+        "fone": "(11)9 9999-9997"
     }
     
     # 2. Fazemos uma "requisição" para a nossa futura API
