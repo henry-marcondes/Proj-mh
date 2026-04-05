@@ -7,6 +7,7 @@ function Simulador() {
   const [clima, setClima] = useState('sol');
   const [cargaAnterior, setCargaAnterior] = useState(null);
   const [dia, setDia] = useState(1);
+  const [fontesControle, setFontesControle] = useState([]);
   
   // Sistema selecionado
   const [sistemaAtivo, setSistemaAtivo] = useState(null);
@@ -40,6 +41,28 @@ function Simulador() {
       setCarregandoSistema(false);
     }
   }, []);
+
+useEffect(() => {
+    console.log("Dados Atualizados: ", dados)
+  if (sistemaAtivo) {
+    setFontesControle([
+      {
+        tipo: 'AC-DC',
+        amperes: sistemaAtivo.conversor_acdc_amperes,
+        ligado: false,
+        hora_inicio: 18,
+        hora_fim: 22
+      },
+      {
+        tipo: 'DC-DC',
+        amperes: sistemaAtivo.dcdc_amperes,
+        ligado: false,
+        hora_inicio: 9,
+        hora_fim: 12
+      }
+    ]);
+  }
+}, [sistemaAtivo]);
 
   // ✅ NOVO: Função para carregar equipamentos do cliente
   const carregarEquipamentos = async () => {
@@ -78,16 +101,25 @@ function Simulador() {
     }
 
     try {
+      const fontesAtivas = fontesControle
+        .filter(f => f.ligado)
+        .map(f => ({
+        tipo: f.tipo,
+        amperes: f.amperes,
+        hora_inicio: f.hora_inicio,
+        hora_fim: f.hora_fim
+    }));
       // ✅ NOVO: Usar equipamentos dinâmicos
       const payload = {
         potencia_painel: sistemaAtivo.painel_watts,
         bateria_ah: sistemaAtivo.bateria_ah,
         clima: clima,
-        equipamentos: equipamentos,  // ✅ Agora dinâmico!
+        equipamentos: equipamentos,
+        fontes_geracao: fontesAtivas, // 🔥 NOVO
         carga_inicial_wh: resetar ? null : (cargaAnterior || null)
       };
-
       console.log("📤 Enviando simulação com equipamentos:", payload);
+      console.log("🔥 FONTES ATIVAS:", fontesAtivas);
 
       const response = await axios.post('http://localhost:8000/simulador/ciclo-24h', payload);
       
@@ -119,6 +151,8 @@ function Simulador() {
   if (carregandoSistema || carregandoEquipamentos) {
     return <div style={{ padding: '20px', textAlign: 'center' }}>Carregando...</div>;
   }
+
+    //console.log("📤 Enviando simulação:", payload);
 
   // Sistema não selecionado
   if (!sistemaAtivo) {
@@ -225,15 +259,73 @@ function Simulador() {
           </p>
         )}
       </div>
+
+      <div style={{
+  backgroundColor: 'var(--card)',
+  padding: '15px',
+  borderRadius: '8px',
+  marginBottom: '20px'
+}}>
+  <h3>🎛️ Controle de Fontes</h3>
+
+  {fontesControle.map((f, index) => (
+    <div key={index} style={{
+      marginBottom: '10px',
+      padding: '10px',
+      borderRadius: '6px',
+      backgroundColor: f.ligado ? '#28a74533' : 'var(--bg)'
+    }}>
+
+      <strong>{f.tipo}</strong> ({f.amperes}A)
+
+      <div style={{ display: 'flex', gap: '10px', marginTop: '5px' }}>
+        
+        {/* BOTÃO LIGAR */}
+        <button onClick={() => {
+          const novaLista = [...fontesControle];
+          novaLista[index].ligado = !novaLista[index].ligado;
+          setFontesControle(novaLista);
+        }}>
+          {f.ligado ? '🔴 Desligar' : '🟢 Ligar'}
+        </button>
+
+        {/* HORA INICIO */}
+        <input
+          type="number"
+          value={f.hora_inicio}
+          onChange={(e) => {
+            const novaLista = [...fontesControle];
+            novaLista[index].hora_inicio = Number(e.target.value);
+            setFontesControle(novaLista);
+          }}
+          style={{ width: '60px' }}
+        />
+
+        {/* HORA FIM */}
+        <input
+          type="number"
+          value={f.hora_fim}
+          onChange={(e) => {
+            const novaLista = [...fontesControle];
+            novaLista[index].hora_fim = Number(e.target.value);
+            setFontesControle(novaLista);
+          }}
+          style={{ width: '60px' }}
+        />
+
+      </div>
+    </div>
+  ))}
+</div>
       
       <div style={{ marginBottom: '20px', display: 'flex', gap: '10px' }}>
         <button 
           onClick={() => setClima('sol')} 
-          style={{ padding: '10px', color: 'black', backgroundColor: clima === 'sol' ? 'var(--primary)' : 'var(--card)', cursor: 'pointer', borderRadius: '5px', border: 'none', fontWeight: 'bold',color:'var(--text)' }}
+          style={{ padding: '10px', backgroundColor: clima === 'sol' ? 'var(--primary)' : 'var(--card)', cursor: 'pointer', borderRadius: '5px', border: 'none', fontWeight: 'bold',color:'var(--text)' }}
         >☀️ Sol</button>
         <button 
           onClick={() => setClima('nublado')} 
-          style={{ padding: '10px', color: 'black', backgroundColor: clima === 'nublado' ? 'var(--primary)' : 'var(--card)', cursor: 'pointer', borderRadius: '5px', border: 'none', fontWeight: 'bold',color:'var(--text)' }}
+          style={{ padding: '10px', backgroundColor: clima === 'nublado' ? 'var(--primary)' : 'var(--card)', cursor: 'pointer', borderRadius: '5px', border: 'none', fontWeight: 'bold',color:'var(--text)' }}
         >☁️ Nublado</button>
         <button 
           onClick={() => setClima('chuva')} 
@@ -265,9 +357,11 @@ function Simulador() {
               <YAxis label={{ value: 'Watts / %', angle: -90, position: 'insideLeft' }} />
               <Tooltip />
               <Legend />
-              <Line type="monotone" dataKey="geracao" stroke="#ffc658" name="Geração (W)" strokeWidth={3} dot={false} />
+              <Line type="monotone" dataKey="geracao_solar" stroke="#23349c" name="Solar (W)" strokeWidth={3} dot={false} />
+              <Line type="monotone" dataKey="geracao_extra" stroke="#00cfff" name="AC/DC (W)" strokeWidth={3} dot={false}/>
               <Line type="monotone" dataKey="bateria_porcentagem" stroke="#28a745" name="Bateria (%)" strokeWidth={2} />
               <Line type="monotone" dataKey="consumo" stroke="#dc3545" name="Consumo (W)" strokeWidth={2} dot={false} />
+              <Line dataKey="desperdicio" stroke="#8884d8" name="Desperdício (W)" />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -281,5 +375,4 @@ function Simulador() {
     </div>
   );
 }
-
 export default Simulador;

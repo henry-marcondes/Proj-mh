@@ -61,6 +61,20 @@ class SimulacaoSchema(BaseModel):
     clima: str # "sol", "nublado" ou "chuva"
     equipamentos: List[Equipamentos]
     carga_inicial_wh: Optional[float] = None
+    
+class FonteGeracao(BaseModel):
+    tipo: str
+    amperes: float
+    hora_inicio: int
+    hora_fim: int
+
+class SimuladorInput(BaseModel):
+    potencia_painel: float
+    bateria_ah: float
+    clima: str
+    equipamentos: List[Equipamentos]
+    fontes_geracao: Optional[List[FonteGeracao]] = []
+    carga_inicial_wh: Optional[float] = None
 
 class FonteEnergiaSchema(BaseModel):
     cliente_id: int | None = None  # Opcional por enquanto para teste
@@ -153,17 +167,21 @@ def criar_cliente(cliente: ClienteSchema, db: Session = Depends(get_db)):
     return novo_cliente
 
 @app.post("/simulador/ciclo-24h")
-def post_simulacao(params: SimulacaoSchema):
+def post_simulacao(params: SimuladorInput):
+
+    print("🔥 FONTES RECEBIDAS:", params.fontes_geracao)
+
     # Usando model_dump() conforme sua observação correta!
     lista_dicts = [eq.model_dump() for eq in params.equipamentos]
-    
+
     resultado = simular_dia_sequencial(
         potencia_painel_w=params.potencia_painel,
         capacidade_bateria_ah=params.bateria_ah,
         lista_equipamentos=lista_dicts,
+        lista_fontes_geracao=[f.model_dump() for f in (params.fontes_geracao or [])], 
         clima=params.clima,
         carga_inicial_wh=params.carga_inicial_wh
-    )
+)
     return resultado
 
 @app.post("/login")
