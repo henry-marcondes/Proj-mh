@@ -121,7 +121,7 @@ useEffect(() => {
       console.log("📤 Enviando simulação com equipamentos:", payload);
       console.log("🔥 FONTES ATIVAS:", fontesAtivas);
 
-      const response = await axios.post('http://localhost:8000/simulador/ciclo-24h', payload);
+      const response = await axios.post('http://localhost:8001/simulador/ciclo-24h', payload);
       
       if (response.data) {
         setDados(response.data);

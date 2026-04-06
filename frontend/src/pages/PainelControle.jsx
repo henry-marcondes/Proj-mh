@@ -1,16 +1,23 @@
 import React, { useEffect, useState } from 'react';
 
-const PainelControle = ({ clienteId }) => {
+const PainelControle = () => {
+  const clienteId = localStorage.getItem('clienteId');
   const [cliente, setCliente] = useState(null);
   const [equipamentos, setEquipamentos] = useState([]);
   const [carregando, setCarregando] = useState(true);
 
   useEffect(() => {
+    console.log("CLIENTE ID:", clienteId);
     if (clienteId) {
       // Buscamos Cliente e Fontes ao mesmo tempo
       Promise.all([
-        fetch(`http://localhost:8000/clientes/${clienteId}`).then(res => res.json()),
-        fetch(`http://localhost:8000/clientes/${clienteId}/fontes`).then(res => res.json())
+        fetch(`http://localhost:8000/clientes/${clienteId}`).then(res => {
+            if (!res.ok) throw new Error("Erro cliente");
+            return res.json();
+      } ),
+        fetch(`http://localhost:8000/clientes/${clienteId}/fontes/`).then(res => {
+    if (!res.ok) throw new Error("Erro fontes");
+    return res.json() } )
       ])
       .then(([dadosCliente, dadosFontes]) => {
         setCliente(dadosCliente);
@@ -19,6 +26,9 @@ const PainelControle = ({ clienteId }) => {
       })
       .catch(err => {
         console.error("Erro ao carregar painel:", err);
+      })
+
+      .finally(() => {
         setCarregando(false);
       });
     }
@@ -79,15 +89,15 @@ const PainelControle = ({ clienteId }) => {
 
 // --- Estilos Básicos (CSS-in-JS para agilizar) ---
 const containerStyle = { padding: '30px', maxWidth: '1200px', margin: '0 auto', fontFamily: 'sans-serif' };
-const headerStyle = { backgroundColor: '#2c3e50', color: 'white', padding: '25px', borderRadius: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' };
+const headerStyle = { backgroundColor: 'var(--bg)', color: 'var(--text)', padding: '25px', borderRadius: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' };
 const contatoStyle = { display: 'flex', flexDirection: 'column', textAlign: 'right', gap: '5px' };
 const tituloSecao = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #eee', paddingBottom: '10px' };
 const gridStyle = { display: 'flex', flexWrap: 'wrap', gap: '20px', marginTop: '20px' };
-const cardStyle = { backgroundColor: '#f9f9f9', border: '1px solid #ddd', borderRadius: '12px', padding: '20px', width: '280px', position: 'relative' };
+const cardStyle = { backgroundColor: 'var(--card)', border: '1px solid #ddd', borderRadius: '12px', padding: '20px', width: '280px', position: 'relative' };
 const badgePublico = (isPublic) => ({ position: 'absolute', top: '10px', right: '10px', fontSize: '10px', padding: '4px 8px', borderRadius: '20px', backgroundColor: isPublic ? '#2ecc71' : '#95a5a6', color: 'white', fontWeight: 'bold' });
 const acoesStyle = { display: 'flex', gap: '10px', marginTop: '20px' };
 const btnAcao = { flex: 1, padding: '8px', cursor: 'pointer', border: '1px solid #ddd', borderRadius: '6px', backgroundColor: 'white' };
-const btnNovo = { backgroundColor: '#3498db', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' };
+const btnNovo = { backgroundColor: 'var(--card)', color: 'var(--text)', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' };
 const msgStyle = { textAlign: 'center', marginTop: '50px', fontSize: '18px' };
 
 export default PainelControle;
