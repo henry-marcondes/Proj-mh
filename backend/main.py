@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 from contextlib import asynccontextmanager
 from calculo_solar import simular_dia_sequencial
+from routes import clientes, fontes, equipamentos, admin
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -21,14 +22,17 @@ app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    #allow_credentials=True,
+    allow_origins=["*"], # depois mudar para allow_origins=["http://localhost:5173"]
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Criar tabelas ao iniciar
-#criar_tabelas()
+
+app.include_router(clientes.router, prefix="/clientes", tags=["Clientes"])
+app.include_router(fontes.router, prefix="/fontes", tags=["Fontes"])
+app.include_router(equipamentos.router, prefix="/equipamentos", tags=["Equipamentos"])
+
+app.include_router(admin.router, prefix="/admin", tags=["Admin"])
 
 # Dependência para abrir/fechar conexão com o banco
 def get_db():

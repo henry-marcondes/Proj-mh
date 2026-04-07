@@ -9,6 +9,10 @@ import FontesEnergia from './FontesEnergia';
 import Simulador from './Simulador';
 import Login from './Login';
 import PainelControle from './PainelControle';
+import Admin from './Admin';
+import AdminClientes from './Admin/AdminClientes';
+import AdminFontes from './Admin/AdminFontes';
+import AdminEquipamentos from './Admin/AdminEquipamentos';
 
 function App() {
   // 1. Crie um estado para o nome do cliente
@@ -56,7 +60,7 @@ function App() {
             <li style={{ margin: '15px 0' }}><Link to="/clientes" style={{ color: 'white', textDecoration: 'none' }}>👤 Cadastro Clientes</Link></li>
             <li style={{ margin: '15px 0' }}><Link to="/fontes" style={{ color: 'white', textDecoration: 'none' }}>⚡ Fontes de Energia</Link></li>
             <li style={{ margin: '15px 0' }}><Link to="/equipamentos" style={{ color: 'white', textDecoration: 'none' }}>🔌 Equipamentos</Link></li>
-	    <li style={{ margin: '15px 0'}}><Link to="/painelcontrole" style={{ color: 'white', textDecoration: 'none'}}> Painel Controle</Link></li>
+	    <li style={{ margin: '15px 0'}}><Link to="/painelcontrole" style={{ color: 'white', textDecoration: 'none'}}> 📄 Painel Controle</Link></li>
           </ul>
         </nav>
 
@@ -68,7 +72,12 @@ function App() {
             <Route path="/fontes" element={<FontesEnergia />} />
             <Route path="/equipamentos" element={<Equipamentos />} />
             <Route path="/login" element={<Login />} />
-	    <Route path="/painelcontrole" element={<PainelControle />} />
+	        <Route path="/painelcontrole" element={<PainelControle />} />
+            <Route path="/admin" element={<Admin />}>
+                <Route path="clientes" element={<AdminClientes />} />
+                <Route path="fontes" element={<AdminFontes />} />
+                <Route path="equipamentos" element={<AdminEquipamentos />} />
+            </Route>
           </Routes>
         </main>
       </div>

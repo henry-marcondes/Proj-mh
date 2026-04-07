@@ -3,6 +3,8 @@ from sqlalchemy.orm import sessionmaker, declarative_base, relationship
 import time
 from sqlalchemy.exc import OperationalError
 
+#from sqlalchemy.orm import SessionLocal
+
 URL_BANCO = "postgresql://admin:password123@db:5432/solar_motorhome"
 
 engine = create_engine(URL_BANCO)
@@ -56,7 +58,7 @@ class EquipamentoDB(Base):
     publico = Column(Boolean, default=True)
 
 def criar_tabelas():
-    retentativas = 3
+    retentativas = 5
     while retentativas > 0:
         try:
             Base.metadata.create_all(bind=engine)
@@ -65,4 +67,12 @@ def criar_tabelas():
         except OperationalError:
             retentativas -= 1
             print(f"⏳ Banco ainda não pronto... tentando novamente ({retentativas} restantes)")
-            time.sleep(4)
+            time.sleep(8)
+
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
