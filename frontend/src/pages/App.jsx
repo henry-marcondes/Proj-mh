@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'; // Importe os hooks
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import ToggleTheme from '../context/ToggleTheme.jsx';
+import axios from 'axios';
 
 // Seus imports de páginas...
 import CadastroCliente from './CadastroCliente';
@@ -18,11 +19,32 @@ function App() {
   // 1. Crie um estado para o nome do cliente
   const [usuario, setUsuario] = useState(null);
 
+    const loginAdmin = async () => {
+  try {
+    const response = await axios.post("http://localhost:8000/admin/login", {
+      usuario: "admin",
+      senha: "1234"
+    });
+
+    console.log("RESPOSTA:", response.data);
+
+    // 🔥 CORRETO AQUI
+    localStorage.setItem("adminToken", response.data.access_token);
+
+    alert("Login admin OK");
+  } catch (error) {
+    console.error("ERRO LOGIN:", error);
+    alert("Erro no login admin");
+  }
+};
+ 
+ 
   // 2. Use o useEffect para ler o localStorage assim que o App carregar
   useEffect(() => {
     const nome = localStorage.getItem('clienteNome');
     setUsuario(nome);
   }, []);
+  //loginAdmin()
 
   const handleLogout = () => {
     localStorage.clear();
@@ -66,6 +88,8 @@ function App() {
 
         {/* Área de Conteúdo */}
         <main style={{ flex: 1, padding: '20px', backgroundColor: '#767bd1' }}>
+            <button onClick={loginAdmin}> 🔐 Login Admin </button>
+
           <Routes>
             <Route path="/" element={<Simulador />} />
             <Route path="/clientes" element={<CadastroCliente />} />

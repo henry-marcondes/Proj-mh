@@ -3,83 +3,46 @@ import axios from 'axios';
 
 function AdminFontes() {
   const [fontes, setFontes] = useState([]);
-  const [loading, setLoading] = useState(true);
 
-  // 🔥 Buscar fontes
   useEffect(() => {
-    axios.get('http://localhost:8000/admin/fontes')
-      .then(res => {
-        console.log("Fontes:", res.data);
-        setFontes(res.data);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error("Erro ao buscar fontes:", err);
-        setLoading(false);
-      });
+    const token = localStorage.getItem("adminToken");
+
+    axios.get("http://localhost:8000/admin/fontes", {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
+    .then(res => {
+      console.log("Fontes:", res.data);
+      setFontes(res.data);
+    })
+    .catch(err => {
+      console.error("Erro ao carregar fontes:", err);
+    });
   }, []);
-
-  // 🔥 Deletar fonte
-  const deletarFonte = async (id) => {
-    if (!window.confirm("Deseja deletar este sistema?")) return;
-
-    try {
-      await axios.delete(`http://localhost:8000/admin/fontes/${id}`);
-      setFontes(fontes.filter(f => f.id !== id));
-    } catch (error) {
-      console.error("Erro ao deletar fonte:", error);
-    }
-  };
-
-  if (loading) return <p>Carregando sistemas...</p>;
 
   return (
     <div>
-      <h2>⚡ Sistemas de Energia</h2>
+      <h2>⚡ Fontes de Energia</h2>
 
-      <table style={{
-        width: '100%',
-        borderCollapse: 'collapse',
-        marginTop: '20px'
-      }}>
+      <table border="1" cellPadding="10">
         <thead>
-          <tr style={{ backgroundColor: '#444', color: 'white' }}>
-            <th style={th}>ID</th>
-            <th style={th}>Cliente</th>
-            <th style={th}>Painel (W)</th>
-            <th style={th}>Bateria</th>
-            <th style={th}>AC-DC</th>
-            <th style={th}>DC-DC</th>
-            <th style={th}>Ações</th>
+          <tr>
+            <th>ID</th>
+            <th>Painel</th>
+            <th>Bateria</th>
+            <th>AC-DC</th>
+            <th>DC-DC</th>
           </tr>
         </thead>
-
         <tbody>
-          {fontes.map(fonte => (
-            <tr key={fonte.id} style={{ borderBottom: '1px solid #ccc' }}>
-              <td style={td}>{fonte.id}</td>
-              <td style={td}>{fonte.cliente_id}</td>
-              <td style={td}>{fonte.painel_watts} W</td>
-              <td style={td}>
-                {fonte.bateria_ah}Ah ({fonte.bateria_tipo})
-              </td>
-              <td style={td}>{fonte.conversor_acdc_amperes} A</td>
-              <td style={td}>{fonte.dcdc_amperes} A</td>
-              <td style={td}>
-                <button 
-                  onClick={() => deletarFonte(fonte.id)}
-                  style={{
-                    backgroundColor: 'var(--primary)',
-                    color: 'var(--text)',
-                    border: 'none',
-                    padding: '5px 10px',
-                    cursor: 'pointer',
-                    borderRadius: '4px'
-                  }}
-                >
-                  🗑️ Deletar
-                </button>
-              </td>
+          {fontes.map(f => (
+            <tr key={f.id}>
+              <td>{f.id}</td>
+              <td>{f.painel_watts}W</td>
+              <td>{f.bateria_ah}Ah</td>
+              <td>{f.conversor_acdc_amperes}A</td>
+              <td>{f.dcdc_amperes}A</td>
             </tr>
           ))}
         </tbody>
@@ -87,8 +50,5 @@ function AdminFontes() {
     </div>
   );
 }
-
-const th = { padding: '10px', textAlign: 'left' };
-const td = { padding: '10px' };
 
 export default AdminFontes;

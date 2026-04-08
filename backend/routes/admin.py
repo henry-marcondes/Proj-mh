@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
+from auth import verificar_admin
 from database import SessionLocal, ClienteDB, FonteEnergiaDB, EquipamentoDB
 
 router = APIRouter( )
@@ -13,16 +14,16 @@ def get_db():
         db.close()
 
 # 👤 CLIENTES
-@router.get("/clientes")
+@router.get("/clientes", dependencies=[Depends(verificar_admin)])
 def listar_clientes(db: Session = Depends(get_db)):
     return db.query(ClienteDB).all()
 
 # ⚡ FONTES
-@router.get("/fontes")
+@router.get("/fontes", dependencies=[Depends(verificar_admin)])
 def listar_fontes(db: Session = Depends(get_db)):
     return db.query(FonteEnergiaDB).all()
 
 # 🔧 EQUIPAMENTOS
-@router.get("/equipamentos")
+@router.get("/equipamentos", dependencies=[Depends(verificar_admin)])
 def listar_equipamentos(db: Session = Depends(get_db)):
     return db.query(EquipamentoDB).all()

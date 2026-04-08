@@ -1,4 +1,5 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import Body, FastAPI, Depends, HTTPException, status,Header
+from auth import criar_token_admin
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from database import SessionLocal, ClienteDB, criar_tabelas, Base
@@ -8,6 +9,10 @@ from typing import List, Optional
 from contextlib import asynccontextmanager
 from calculo_solar import simular_dia_sequencial
 from routes import clientes, fontes, equipamentos, admin
+
+ADMIN_USER = "admin"
+ADMIN_PASSWORD = "1234"
+ADMIN_TOKEN = "token-super-secreto"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -33,6 +38,16 @@ app.include_router(fontes.router, prefix="/fontes", tags=["Fontes"])
 app.include_router(equipamentos.router, prefix="/equipamentos", tags=["Equipamentos"])
 
 app.include_router(admin.router, prefix="/admin", tags=["Admin"])
+
+@app.post("/admin/login")
+def login_admin(dados: dict):
+    if dados.get("usuario") == ADMIN_USER and dados.get("senha") == ADMIN_PASSWORD:
+        return {"token": ADMIN_TOKEN}
+    raise HTTPException(status_code=401, detail="Credenciais inválidas")
+
+def verificar_admin(authorization: str = Header(None)):
+    if authorization != f"Bearer {ADMIN_TOKEN}":
+        raise HTTPException(status_code=403, detail="Acesso negado")
 
 # Dependência para abrir/fechar conexão com o banco
 def get_db():
