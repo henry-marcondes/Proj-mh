@@ -22,7 +22,6 @@ const buttonSimularStyle = {
     marginTop: '8px'
 };
 
- 
 const containerStyle = {
   display: 'flex',
   flexDirection: 'column',
@@ -46,7 +45,6 @@ const cardStyle = {
 
 function FontesEnergia() {
     const {isDarkMode } = useContext(ThemeContext);
-    const clienteId = localStorage.getItem('clienteId');
 
     const inputStyle = {
         padding: '8px',
@@ -83,7 +81,6 @@ function FontesEnergia() {
 
     // --- 2. ESTADOS ---
     const [fontes, setFontes] = useState({
-        cliente_id: clienteId,
         painel_watts: 330,
         bateria_ah: 100,
         tipo_controlador: 'MPPT',
@@ -106,53 +103,75 @@ function FontesEnergia() {
             [campo]: isNaN(valorNum) ? 0 : valorNum
         });
     };
-
     // --- 4. BUSCAR DADOS DO BACKEND ---
-    useEffect(() => {
-        const idNumerico = parseInt(clienteId);
+  useEffect(() => {
+    const carregarFontes = async () => {
+        const token = localStorage.getItem("token");
 
-        if (!isNaN(idNumerico)) {
-            axios.get(`http://localhost:8000/clientes/${idNumerico}/fontes/`)
-                .then(response => {
-                    setListaFontes(response.data);
-                    setLoading(false);
-                })
-                .catch(err => {
-                    console.error("Erro ao buscar fontes:", err);
-                    setLoading(false);
-                });
-        } else {
+        try {
+            const res = await axios.get("http://localhost:8000/fontes", {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            });
+
+            setListaFontes(res.data);
+
+        } catch (error) {
+            console.error(error);
+        } finally {
             setLoading(false);
         }
-    }, [clienteId]);
+    };
+
+    carregarFontes();
+}, []);
 
     // --- 5. SALVAR DADOS ---
-    const handleSalvar = async () => {
-        try {
-            const dadosParaEnviar = {
-                ...fontes,
-                cliente_id: parseInt(clienteId),
-                painel_watts: Number(fontes.painel_watts),
-                bateria_ah: Number(fontes.bateria_ah),
-                conversor_acdc_amperes: Number(fontes.conversor_acdc_amperes),
-                dcdc_amperes: Number(fontes.dcdc_amperes),
-                publico: Boolean(fontes.publico)
-            };
+   const handleSalvar = async () => {
+    try {
+        const token = localStorage.getItem("token");
 
-            console.log("Enviando para o servidor:", dadosParaEnviar);
+        const dadosParaEnviar = {
+            painel_watts: Number(fontes.painel_watts),
+            bateria_ah: Number(fontes.bateria_ah),
+            tipo_controlador: fontes.tipo_controlador,
+            bateria_tipo: fontes.bateria_tipo,
+            conversor_acdc_amperes: Number(fontes.conversor_acdc_amperes),
+            dcdc_amperes: Number(fontes.dcdc_amperes),
+            publico: Boolean(fontes.publico)
+        };
 
-            const response = await axios.post('http://localhost:8000/fontes/', dadosParaEnviar);
-            
-            setStatus("✅ Configuração salva com sucesso!");
-            
-            // Recarrega a lista
-            const res = await axios.get(`http://localhost:8000/clientes/${parseInt(clienteId)}/fontes/`);
-            setListaFontes(res.data);
-        } catch (error) {
-            console.error("Erro detalhado do backend:", error.response?.data);
-            setStatus(`❌ Erro: ${error.response?.data?.detail || "Erro ao salvar no servidor"}`);
-        }
-    };
+        console.log("📤 Enviando:", dadosParaEnviar);
+
+        const response = await axios.post(
+            "http://localhost:8000/fontes",
+            dadosParaEnviar,
+            {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            }
+        );
+        const res = await axios.get("http://localhost:8000/fontes", {
+            headers: {
+                Authorization: `Bearer ${token}`
+            }
+        });
+
+        setListaFontes(res.data);
+
+        console.log("✅ Salvo:", response.data);
+
+        setStatus("✅ Configuração salva com sucesso!");
+
+    } catch (error) {
+        console.error("❌ ERRO COMPLETO:", error);
+        console.error("❌ RESPONSE:", error.response);
+
+        setStatus("Erro ao salvar");
+    } 
+};
 
     // ✅ NOVO: Função para selecionar sistema para simulação
     const handleSelecionarParaSimulacao = (fonte) => {
@@ -163,9 +182,6 @@ function FontesEnergia() {
         console.log("Sistema selecionado:", fonte);
     };
 
-    if (!clienteId) {
-        return <div style={{ padding: '20px' }}>⚠️ Por favor, faça login.</div>;
-    }
     return (
         <div style={containerStyle}>
             
@@ -264,5 +280,6 @@ function FontesEnergia() {
         </div>
     );
 }
+
 
 export default FontesEnergia;

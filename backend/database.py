@@ -3,29 +3,18 @@ from sqlalchemy.orm import sessionmaker, declarative_base, relationship
 import time
 from sqlalchemy.exc import OperationalError
 
-#from sqlalchemy.orm import SessionLocal
-
 URL_BANCO = "postgresql://admin:password123@db:5432/solar_motorhome"
 
 engine = create_engine(URL_BANCO)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-class ClienteDB(Base):
-    __tablename__ = "clientes"
-    id = Column(Integer, primary_key=True, index=True)
-    nome = Column(String)
-    email = Column(String, unique=True)
-    cpf = Column(String, unique=True)
-    fone = Column(String, unique=False, nullable=True)
-    # ✅ FIX: Nomenclatura consistente
-    fontes_energia = relationship("FonteEnergiaDB", back_populates="cliente")
 
 class FonteEnergiaDB(Base):
     __tablename__ = "fontes_energia"
     id = Column(Integer, primary_key=True, index=True)
     # ✅ FIX: Adicionar nullable=False para garantir integridade
-    cliente_id = Column(Integer, ForeignKey("clientes.id"), nullable=False, unique=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, unique=False)
  
     # Placas Solares
     painel_watts = Column(Float, default=0.0)
@@ -44,13 +33,13 @@ class FonteEnergiaDB(Base):
     # Campo para privacidade dos dados
     publico = Column(Boolean, default=True)
 
-    # ✅ FIX: Nomenclatura consistente com ClienteDB
-    cliente = relationship("ClienteDB", back_populates="fontes_energia")
+    # ✅ FIX: Nomenclatura consistente com User
+    user = relationship("User", back_populates="fontes_energia")
 
 class EquipamentoDB(Base):
     __tablename__ = "equipamentos"
     id = Column(Integer, primary_key=True, index=True)
-    cliente_id = Column(Integer, ForeignKey("clientes.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     nome = Column(String)
     watts = Column(Float)
     hora_inicio = Column(Integer)
@@ -76,3 +65,5 @@ def get_db():
         yield db
     finally:
         db.close()
+
+

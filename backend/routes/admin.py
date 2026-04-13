@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from auth import verificar_admin
-from database import SessionLocal, ClienteDB, FonteEnergiaDB, EquipamentoDB
+from database import SessionLocal, FonteEnergiaDB, EquipamentoDB
+from models import User
 
 router = APIRouter( )
 
@@ -16,7 +17,7 @@ def get_db():
 # 👤 CLIENTES
 @router.get("/clientes", dependencies=[Depends(verificar_admin)])
 def listar_clientes(db: Session = Depends(get_db)):
-    return db.query(ClienteDB).all()
+    return db.query(User).all()
 
 # ⚡ FONTES
 @router.get("/fontes", dependencies=[Depends(verificar_admin)])

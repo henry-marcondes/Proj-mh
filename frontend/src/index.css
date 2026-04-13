@@ -115,3 +115,7 @@ fieldset {
 .error {
   color: var(--danger);
 }
+
+display: flex;
+flex-wrap: wrap;
+

@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { Link } from "react-router-dom";
 
 function Simulador() {
   const [dados, setDados] = useState([]);
   const [clima, setClima] = useState('sol');
   const [cargaAnterior, setCargaAnterior] = useState(null);
-  const [dia, setDia] = useState(1);
+  const [dia, setDia] = useState(0);
   const [fontesControle, setFontesControle] = useState([]);
   
   // Sistema selecionado
@@ -17,7 +18,30 @@ function Simulador() {
   const [equipamentos, setEquipamentos] = useState([]);
   const [carregandoEquipamentos, setCarregandoEquipamentos] = useState(false);
 
-  const clienteId = localStorage.getItem('clienteId');
+    const carregarEquipamentos = async () => {
+    const token = localStorage.getItem("token");
+
+    setCarregandoEquipamentos(true);
+
+    try {
+        const response = await axios.get(
+        'http://localhost:8000/equipamentos',
+      {
+            headers: {
+            Authorization: `Bearer ${token}`
+            }
+        }
+        );
+
+        setEquipamentos(response.data || []);
+        console.log("✅ Equipamentos carregados:", response.data);
+
+    } catch (error) {
+        console.error("❌ Erro ao carregar equipamentos:", error);
+    } finally {
+        setCarregandoEquipamentos(false);
+    }
+  };
 
   // ✅ NOVO: Carregar sistema selecionado do localStorage
   useEffect(() => {
@@ -64,30 +88,6 @@ useEffect(() => {
   }
 }, [sistemaAtivo]);
 
-  // ✅ NOVO: Função para carregar equipamentos do cliente
-  const carregarEquipamentos = async () => {
-    if (!clienteId) return;
-
-    setCarregandoEquipamentos(true);
-    try {
-      const response = await axios.get(
-        `http://localhost:8000/clientes/${clienteId}/equipamentos/`
-      );
-      
-      if (response.data && response.data.length > 0) {
-        setEquipamentos(response.data);
-        console.log("✅ Equipamentos carregados:", response.data);
-      } else {
-        console.log("ℹ️ Nenhum equipamento cadastrado");
-        setEquipamentos([]);
-      }
-      setCarregandoEquipamentos(false);
-    } catch (error) {
-      console.error("❌ Erro ao carregar equipamentos:", error);
-      setCarregandoEquipamentos(false);
-    }
-  };
-
   const buscarSimulacao = async (resetar = false) => {
     if (!sistemaAtivo) {
       alert("❌ Nenhum sistema selecionado! Por favor, acesse 'Fontes de Energia' e selecione um sistema.");
@@ -121,8 +121,16 @@ useEffect(() => {
       console.log("📤 Enviando simulação com equipamentos:", payload);
       console.log("🔥 FONTES ATIVAS:", fontesAtivas);
 
-      const response = await axios.post('http://localhost:8001/simulador/ciclo-24h', payload);
-      
+      const response = await axios.post(
+        'http://localhost:8000/simulador/ciclo-24h',
+            payload,
+        {
+            headers: {
+             Authorization: `Bearer ${localStorage.getItem("token")}`
+            }
+         }
+    );
+
       if (response.data) {
         setDados(response.data);
         const ultimoPonto = response.data[response.data.length - 1];
@@ -181,8 +189,8 @@ useEffect(() => {
           <p style={{ color: '#721c24', marginBottom: '20px' }}>
             Para usar o simulador, você precisa selecionar um sistema de energia em "Fontes de Energia".
           </p>
-          <a 
-            href="/fontes" 
+          <Link 
+            to="/fontes" 
             style={{ 
               display: 'inline-block',
               padding: '12px 24px', 
@@ -195,7 +203,7 @@ useEffect(() => {
             }}
           >
             Ir para Fontes de Energia →
-          </a>
+          </Link>
         </div>
       </div>
     );
@@ -203,7 +211,7 @@ useEffect(() => {
 
   return (
     <div style={{ padding: '20px', backgroundColor: '#95bed4', minHeight: '100vh', fontFamily: 'sans-serif' }}>
-      <h1 style={{ color: 'var(--text)' }}>Simulador Solar Motorhome - Dia {dia}</h1>
+      <h2 style={{ color: 'var(--text)' }}>Solar MH Pro - Dia {dia}</h2>
       
       {/* ✅ Card do Sistema Selecionado */}
       <div style={{ 
@@ -255,7 +263,7 @@ useEffect(() => {
           </ul>
         ) : (
           <p style={{ margin: '5px 0 0 0', color: '#999' }}>
-            ℹ️ Nenhum equipamento. <a href="/equipamentos" style={{ color: '#007bff', textDecoration: 'none' }}>Adicione agora →</a>
+            ℹ️ Nenhum equipamento. <Link to="/equipamentos" style={{ color: '#007bff', textDecoration: 'none' }}>Adicione agora →</Link>
           </p>
         )}
       </div>

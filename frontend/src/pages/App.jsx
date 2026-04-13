@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react'; // Importe os hooks
+import React, { useState, useEffect, useRef, useContext } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import ToggleTheme from '../context/ToggleTheme.jsx';
 import axios from 'axios';
 
-// Seus imports de páginas...
 import CadastroCliente from './CadastroCliente';
 import Equipamentos from './Equipamentos.jsx';
 import FontesEnergia from './FontesEnergia';
@@ -14,98 +13,137 @@ import Admin from './Admin';
 import AdminClientes from './Admin/AdminClientes';
 import AdminFontes from './Admin/AdminFontes';
 import AdminEquipamentos from './Admin/AdminEquipamentos';
+import MeusProjetos from "./MeusProjetos";
+import Perfil from "./Perfil";
+import Cadastro from "./Cadastro";
+
+import { AuthProvider, AuthContext } from "../context/AuthContext";
+import PrivateRoute from "../routes/PrivateRoute";
+import Dashboard from './Dashboard.jsx';
 
 function App() {
-  // 1. Crie um estado para o nome do cliente
-  const [usuario, setUsuario] = useState(null);
+  const [menuAberto, setMenuAberto] = useState(false);
+  const menuRef = useRef(null);
 
-    const loginAdmin = async () => {
-  try {
-    const response = await axios.post("http://localhost:8000/admin/login", {
-      usuario: "admin",
-      senha: "1234"
-    });
+  // ✅ CORRETO: useContext aqui em cima
+  const { user, logout } = useContext(AuthContext);
 
-    console.log("RESPOSTA:", response.data);
+  const loginAdmin = async () => {
+    try {
+      const response = await axios.post("http://localhost:8000/admin/login", {
+        usuario: "admin",
+        senha: "1234"
+      });
 
-    // 🔥 CORRETO AQUI
-    localStorage.setItem("adminToken", response.data.access_token);
-
-    alert("Login admin OK");
-  } catch (error) {
-    console.error("ERRO LOGIN:", error);
-    alert("Erro no login admin");
-  }
-};
- 
- 
-  // 2. Use o useEffect para ler o localStorage assim que o App carregar
-  useEffect(() => {
-    const nome = localStorage.getItem('clienteNome');
-    setUsuario(nome);
-  }, []);
-  //loginAdmin()
-
-  const handleLogout = () => {
-    localStorage.clear();
-    setUsuario(null); // Limpa o estado para o botão sumir na hora
-    window.location.href = '/login';
+      localStorage.setItem("adminToken", response.data.access_token);
+      alert("Login admin OK");
+    } catch (error) {
+      console.error("ERRO LOGIN:", error);
+      alert("Erro no login admin");
+    }
   };
 
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setMenuAberto(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   return (
-    <Router>
-      < ToggleTheme />
-      <div style={{ display: 'flex', minHeight: '100vh' }}>
-        {/* Menu Lateral */}
-        <nav style={{ width: '250px', backgroundColor: '#2c3e50', color: 'white', padding: '20px' }}>
-          <h2>Solar MH</h2>
-          
-          {/* 3. Verifique o estado 'usuario' em vez da variável externa */}
-          {usuario ? (
-            <>
-              <p style={{ fontSize: '14px', color: '#1abc9c' }}>✅ Olá, {usuario}!</p>
-              <button 
-                onClick={handleLogout} 
-                style={{ marginBottom: '20px', background: 'none', color: 'orange', border: '1px solid orange', cursor: 'pointer', padding: '5px' }}
-              >
-                Sair
-              </button>
-            </>
-          ) : (
-            <li style={{ listStyle: 'none', margin: '15px 0' }}>
-              <Link to="/login" style={{ color: '#3498db', textDecoration: 'none', fontWeight: 'bold' }}>🔑 Entrar / Login</Link>
-            </li>
+      <Router>
+        <ToggleTheme />
+
+        {/* MENU */}
+        <div style={{ padding: '10px', background: '#2c3e50', color: 'white' }}>
+          <button onClick={() => setMenuAberto(!menuAberto)}>
+            ☰ Menu
+          </button>
+
+          {menuAberto && (
+            <div
+              ref={menuRef}
+              style={{
+                position: 'absolute',
+                top: '50px',
+                left: '10px',
+                background: 'var(--bg)',
+                padding: '10px',
+                borderRadius: '8px',
+                display: 'flex',
+                flexDirection: 'column',
+                zIndex: 1000
+              }}
+            >
+
+              {/* USUÁRIO */}
+              {user ? (
+                <>
+                  <p style={{ color: '#1abc9c' }}>✅ Olá, {user.nome}</p>
+                  <button onClick={logout}>Sair</button>
+                </>
+              ) : (
+                <Link to="/login">🔑 Login</Link>
+              )}
+
+              <Link to="/meus-projetos">📁 Meus Projetos</Link>
+              <Link to="/perfil">👤 Perfil</Link>
+              <Link to="/">📊 Simulador</Link>
+              <Link to="/cadastro">👤 Cadastro</Link>
+              <Link to="/fontes">⚡ Fontes</Link>
+              <Link to="/equipamentos">🔌 Equipamentos</Link>
+              <Link to="/painelcontrole">📄 Painel Controle</Link>
+              <Link to="/admin">🔐 Admin</Link>
+            </div>
           )}
+        </div>
 
-          <ul style={{ listStyle: 'none', padding: 0 }}>
-            <li style={{ margin: '15px 0' }}><Link to="/" style={{ color: 'white', textDecoration: 'none' }}>📊 Simulador</Link></li>
-            <li style={{ margin: '15px 0' }}><Link to="/clientes" style={{ color: 'white', textDecoration: 'none' }}>👤 Cadastro Clientes</Link></li>
-            <li style={{ margin: '15px 0' }}><Link to="/fontes" style={{ color: 'white', textDecoration: 'none' }}>⚡ Fontes de Energia</Link></li>
-            <li style={{ margin: '15px 0' }}><Link to="/equipamentos" style={{ color: 'white', textDecoration: 'none' }}>🔌 Equipamentos</Link></li>
-	    <li style={{ margin: '15px 0'}}><Link to="/painelcontrole" style={{ color: 'white', textDecoration: 'none'}}> 📄 Painel Controle</Link></li>
-          </ul>
-        </nav>
-
-        {/* Área de Conteúdo */}
-        <main style={{ flex: 1, padding: '20px', backgroundColor: '#767bd1' }}>
-            <button onClick={loginAdmin}> 🔐 Login Admin </button>
-
+        {/* CONTEÚDO */}
+        <main style={{ padding: '20px', backgroundColor: '#767bd1', minHeight: '100vh' }}>
           <Routes>
             <Route path="/" element={<Simulador />} />
-            <Route path="/clientes" element={<CadastroCliente />} />
-            <Route path="/fontes" element={<FontesEnergia />} />
-            <Route path="/equipamentos" element={<Equipamentos />} />
+
+            <Route path="/simulador" element={
+              <PrivateRoute><Simulador /></PrivateRoute>
+            } />
+           
+            <Route path="/dashboard" element={
+              <PrivateRoute><Dashboard /></PrivateRoute>
+            } />
+
+            <Route path="/cadastro" element={<Cadastro />} />
+
+            <Route path="/fontes" element={
+              <PrivateRoute><FontesEnergia /></PrivateRoute>
+            } />
+
+            <Route path="/equipamentos" element={
+              <PrivateRoute><Equipamentos /></PrivateRoute>
+            } />
+
             <Route path="/login" element={<Login />} />
-	        <Route path="/painelcontrole" element={<PainelControle />} />
+            <Route path="/painelcontrole" element={<PainelControle />} />
+            <Route path="/meus-projetos" element={<MeusProjetos />} />
+
+            <Route path="/perfil" element={
+              <PrivateRoute><Perfil /></PrivateRoute>
+            } />
+
             <Route path="/admin" element={<Admin />}>
-                <Route path="clientes" element={<AdminClientes />} />
-                <Route path="fontes" element={<AdminFontes />} />
-                <Route path="equipamentos" element={<AdminEquipamentos />} />
+              <Route path="clientes" element={<AdminClientes />} />
+              <Route path="fontes" element={<AdminFontes />} />
+              <Route path="equipamentos" element={<AdminEquipamentos />} />
             </Route>
           </Routes>
         </main>
-      </div>
-    </Router>
+      </Router>
   );
 }
 

@@ -1,30 +1,78 @@
-# 🚐 Solar Motorhome Helper - V.0.1.0
+# 🚐 Solar Motorhome Helper - V.0.2.0
 
-O **Solar Motorhome Helper** é uma ferramenta desenvolvida para auxiliar proprietários de veículos recreativos no dimensionamento do seu sistema fotovoltaico e na gestão de consumo de energia. 
+O **Solar Motorhome Helper** é uma plataforma para simulação e gestão de sistemas de energia em motorhomes e veículos recreativos.
 
-O projeto permite que o usuário cadastre seu inventário de equipamentos, visualize o perfil de carga e valide a autonomia das baterias de forma intuitiva.
+A aplicação permite que usuários cadastrem seus equipamentos, configurem sistemas de energia e simulem o comportamento da bateria ao longo do tempo, auxiliando na tomada de decisão para autonomia energética.
+
+---
 
 ## 🚀 Tecnologias Utilizadas
 
-O projeto utiliza uma arquitetura moderna baseada em microserviços e containers:
+Arquitetura moderna baseada em API + SPA:
 
-* **Frontend:** React.js (Vite) + Axios para consumo de API.
-* **Backend:** FastAPI (Python 3) - Alta performance e validação de dados com Pydantic.
-* **Banco de Dados:** PostgreSQL (Relacional).
-* **Infraestrutura:** Docker e Docker Compose para orquestração de ambiente.
-* **ORM:** SQLAlchemy para mapeamento objeto-relacional.
+### 🔹 Frontend
+- React.js (Vite)
+- Axios
+- React Router
+- Recharts (gráficos)
 
-## 🛠️ Funcionalidades Atuais (V.0.1.0)
+### 🔹 Backend
+- FastAPI (Python 3)
+- Pydantic (validação)
+- JWT (autenticação)
 
-- [x] Autenticação de usuários (Login/Cadastro).
-- [x] Gestão de inventário de equipamentos (CRUD).
-- [x] Controle de privacidade (Compartilhamento de dados com a comunidade).
-- [x] Persistência de dados em banco de dados relacional.
-- [x] Ambiente de desenvolvimento containerizado.
+### 🔹 Banco de Dados
+- PostgreSQL
 
-## 📦 Como rodar o projeto
+### 🔹 Infraestrutura
+- Docker
+- Docker Compose
 
-1. Certifique-se de ter o **Docker** e **Docker Compose** instalados.
-2. Clone o repositório:
-   ```bash
-   git clone [https://github.com/henry-marcondes/Proj-mh.git](https://github.com/henry-marcondes/Proj-mh.git)
+### 🔹 ORM
+- SQLAlchemy
+
+---
+
+## 🧠 Funcionalidades (V.0.2.0)
+
+### 🔐 Autenticação
+- [x] Cadastro de usuários
+- [x] Login com JWT
+- [x] Persistência de sessão
+- [x] Proteção de rotas
+
+### 🔌 Equipamentos
+- [x] Cadastro de equipamentos
+- [x] Listagem por usuário
+- [x] Cálculo de consumo total
+
+### ⚡ Sistema de Energia
+- [x] Seleção de sistema (painel + bateria)
+- [x] Armazenamento no localStorage
+
+### 📊 Simulador
+- [x] Simulação de ciclo de 24h
+- [x] Integração com equipamentos reais
+- [x] Controle de fontes (AC-DC / DC-DC)
+- [x] Gráfico de consumo, geração e bateria
+
+### 📈 Dashboard
+- [x] Visão geral do usuário
+- [x] Métricas (equipamentos e consumo)
+- [x] Lista dinâmica de equipamentos
+
+---
+
+## 🐳 Como rodar o projeto
+
+### 1️⃣ Pré-requisitos
+- Docker
+- Docker Compose
+
+---
+
+### 2️⃣ Clonar repositório
+
+```bash
+git clone https://github.com/henry-marcondes/Proj-mh.git
+cd Proj-mh

@@ -45,6 +45,8 @@ function AdminClientes() {
           ))}
         </tbody>
       </table>
+      <button onClick={() => editar(item)}>✏️</button>
+      <button onClick={() => deletar(item.id)}>🗑️</button>
     </div>
   );
 }

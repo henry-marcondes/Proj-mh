@@ -10,9 +10,9 @@ router = APIRouter()
 def listar_fontes(db: Session = Depends(get_db)):
     return db.query(FonteEnergiaDB).all()
 
-@router.delete("/admin/fontes/{cliente_id}")
-def deletar_cliente(cliente_id: int, db: Session = Depends(get_db)):
-    cliente = db.query(FonteEnergiaDB).filter(FonteEnergiaDB.id == cliente_id).first()
+@router.delete("/admin/fontes/{user_id}")
+def deletar_cliente(user_id: int, db: Session = Depends(get_db)):
+    cliente = db.query(FonteEnergiaDB).filter(FonteEnergiaDB.id == user_id).first()
     
     if not cliente:
         raise HTTPException(status_code=404, detail="Cliente não encontrado")

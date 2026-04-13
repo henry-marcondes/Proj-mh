@@ -1,17 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
+const token = localStorage.getItem("token");
+
+if (!token) {
+  window.location.href = "/login";
+}
+
 function Equipamentos() {
-  const clienteId = localStorage.getItem('clienteId');
   
-  if (!clienteId) {
-    return (
-      <div style={{ padding: '20px', textAlign: 'center' }}>
-        <h2>⚠️ Acesso Negado</h2>
-        <p>Por favor, faça <a href="/login">login</a> para acessar esta página.</p>
-      </div>
-    )
-  }
 
   // ✅ ESTADOS
   const [equipamentos, setEquipamentos] = useState([]);
@@ -25,21 +22,29 @@ function Equipamentos() {
     publico: true
   });
 
+    const carregarEquipamentos = async () => {
+        const token = localStorage.getItem("token");
+
+        try {
+      const res = await axios.get('http://localhost:8000/equipamentos',{
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            });
+
+            setEquipamentos(res.data); 
+
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
   // ✅ NOVO: Carregar equipamentos do banco ao montar
   useEffect(() => {
-    carregarEquipamentos();
-  }, [clienteId]);
-
-  const carregarEquipamentos = async () => {
-    try {
-      const response = await axios.get(`http://localhost:8000/clientes/${clienteId}/equipamentos/`);
-      setEquipamentos(response.data);
-      setLoading(false);
-    } catch (error) {
-      console.error("Erro ao carregar equipamentos:", error);
-      setLoading(false);
-    }
-  };
+      carregarEquipamentos();
+  },[]);
 
   // ✅ NOVO: Validação antes de adicionar
   const validarEquipamento = (equip) => {
@@ -62,19 +67,23 @@ function Equipamentos() {
     if (!validarEquipamento(novoEquip)) return;
 
     try {
+      const token = localStorage.getItem("token");
       const payload = {
-        cliente_id: parseInt(clienteId),
-        lista_equipamentos: [...equipamentos, {
-          nome: novoEquip.nome,
-          watts: parseFloat(novoEquip.watts),
-          hora_inicio: parseInt(novoEquip.hora_inicio),
-          hora_fim: parseInt(novoEquip.hora_fim),
-          publico: novoEquip.publico
-        }]
+        nome: novoEquip.nome,
+        watts: parseFloat(novoEquip.watts),
+        hora_inicio: parseInt(novoEquip.hora_inicio),
+        hora_fim: parseInt(novoEquip.hora_fim),
+        publico: novoEquip.publico
       };
-
-      await axios.post('http://localhost:8000/equipamentos/', payload);
-      
+      await axios.post(
+        'http://localhost:8000/equipamentos/',
+        payload,
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+             }
+          }
+     );
       // ✅ Recarregar lista do banco
       await carregarEquipamentos();
       
@@ -127,19 +136,24 @@ function Equipamentos() {
   };
 
   // ✅ NOVO: Função auxiliar para atualizar estado de edição
-  const atualizarEquipamento = (id, campo, valor) => {
-    setEquipamentos(
-      equipamentos.map(e => 
-        e.id === id 
-          ? { ...e, [campo]: campo === 'watts' ? parseFloat(valor) : 
-                     campo === 'hora_inicio' || campo === 'hora_fim' ? parseInt(valor) :
-                     campo === 'publico' ? valor :
-                     valor }
-          : e
-      )
-    );
-  };
-
+         const atualizarEquipamento = (id, campo, valor) => {
+            setEquipamentos(
+                equipamentos.map(e => 
+                 e.id === id 
+                    ? { 
+                        ...e, 
+                        [campo]: campo === 'watts' 
+                        ? parseFloat(valor) 
+                        : campo === 'hora_inicio' || campo === 'hora_fim' 
+                        ? parseInt(valor)
+                        : campo === 'publico'
+                        ? valor === "true"
+                        : valor 
+                    }
+                    : e
+                 )
+              );
+            };
   return (
       <div style={{
         maxWidth: '900px',
@@ -149,8 +163,6 @@ function Equipamentos() {
         color: 'var(--text)'
     }}>
       <h2>🔌 Inventário de Equipamentos (Cargas)</h2>
-      {clienteId && <p style={{ color: '#61075a' }}>ID do Cliente Ativo: <strong>{clienteId}</strong></p>}
-
       {/* ✅ FORMULÁRIO DE ADIÇÃO */}
       <div style={{ backgroundColor: 'var(--card)', padding: '15px', borderRadius: '8px', marginBottom: '20px', display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
         <div>
