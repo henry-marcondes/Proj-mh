@@ -1,13 +1,16 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from database import SessionLocal,  criar_tabelas, Base
-from database import FonteEnergiaDB, EquipamentoDB, UserDB, SubscriptionDB, Plan, engine
-from pydantic import BaseModel
+from database import Base, SessionLocal,  criar_tabelas, engine
+from models import FonteEnergiaDB, EquipamentoDB, UserDB, SubscriptionDB, PlanDB
+from pydantic import BaseModel, EmailStr
 from typing import List, Optional
 from contextlib import asynccontextmanager
 from calculo_solar import simular_dia_sequencial
+from auth import get_current_user
+from auth import router as auth_router
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -16,23 +19,22 @@ async def lifespan(app: FastAPI):
     criar_tabelas()
     
     yield  # Aqui o app fica rodando
+    print("🛑 Encerrando sistema...")
     
-
 app = FastAPI(
     docs_url=None,
-    redoc_url=None
+    redoc_url=None,
+    lifespan=lifespan
 )
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    #allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Criar tabelas ao iniciar
-#criar_tabelas()
+app.include_router(auth_router)
 
 # Dependência para abrir/fechar conexão com o banco
 def get_db():
@@ -49,10 +51,10 @@ class ClienteSchema(BaseModel):
     fone : str | None = None
 
 class EquipamentosUpdate(BaseModel):
-    nome: str
-    watts: float
-    hora_inicio: int
-    hora_fim: int
+    nome: str | None = None
+    watts: float | None = None
+    hora_inicio: int | None = None
+    hora_fim: int | None = None
     publico: bool = True
 
 class InventarioSchema(BaseModel):
@@ -92,9 +94,9 @@ class FonteEnergiaSchema(BaseModel):
 
 class UserCreate(BaseModel):
     nome: str
-    email: str
-    cpf: str
-    fone: str
+    email: EmailStr
+    cpf: str | None = None
+    fone: str | None = None
     senha: str
 
 
@@ -123,7 +125,7 @@ def criar_user(dados: UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
     # 🔥 pegar plano FREE
-    plano_free = db.query(Plan).filter(Plan.nome == "FREE").first()
+    plano_free = db.query(PlanDB).filter(PlanDB.nome == "FREE").first()
 
     if not plano_free:
         raise HTTPException(status_code=500, detail="Plano FREE não encontrado")
@@ -265,22 +267,28 @@ def deletar_equipamento(equipamento_id: int, db: Session = Depends(get_db)):
 
 # ✅ NOVO: Atualizar equipamento (CORRIGIDO)
 @app.put("/equipamentos/{equipamento_id}")
-def atualizar_equipamento(equipamento_id: int, dados: EquipamentosUpdate, db: Session = Depends(get_db)):
+def atualizar_equipamento(
+    equipamento_id: int,
+    dados: EquipamentosUpdate,
+    db: Session = Depends(get_db),
+    current_user: UserDB = Depends(get_current_user)
+):
     
     equipamento = db.query(EquipamentoDB).filter(
         EquipamentoDB.id == equipamento_id,
-        EquipamentoDB.user_id == dados.user_id
+        EquipamentoDB.user_id == current_user.id  # ✅ CORRETO
     ).first()
+
     if not equipamento:
         raise HTTPException(status_code=404, detail="Equipamento não encontrado")
     
-    # ✅ FIX: Usar update com dictionary
     for key, value in dados.model_dump().items():
         if hasattr(equipamento, key):
             setattr(equipamento, key, value)
     
     db.commit()
     db.refresh(equipamento)
+
     return equipamento
 
 @app.post("/equipamentos/")

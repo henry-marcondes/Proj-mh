@@ -6,13 +6,13 @@ from fastapi.security import HTTPBearer
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from database import get_db
-from models import User, Plan, Subscription
+from models import UserDB, SubscriptionDB, PlanDB
 from passlib.context import CryptContext
 from pydantic import BaseModel, EmailStr
 
 SECRET_KEY = "S123456"
 ALGORITHM = "HS256"
-EXPIRATION_MINUTES = 120
+EXPIRATION_MINUTES = 60 *24 # 1 dia
 
 security = HTTPBearer()
 
@@ -39,7 +39,7 @@ def verificar_senha(senha, hash):
 
 def criar_token(user_id: int):
     payload = {
-            "sub": str(user_id),
+        "sub": str(user_id),
         "exp": datetime.now(timezone.utc) + timedelta(minutes=EXPIRATION_MINUTES)
     }
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
@@ -66,11 +66,11 @@ def verificar_admin(credentials: HTTPAuthorizationCredentials = Depends(security
 @router.post("/register")
 def register(data: UserCreate, db: Session = Depends(get_db)):
 
-    user_exist = db.query(User).filter(User.email == data.email).first()
+    user_exist = db.query(UserDB).filter(UserDB.email == data.email).first() #verificar se não é UserDB
     if user_exist:
         raise HTTPException(status_code=400, detail="Email já existe")
 
-    novo_user = User(
+    novo_user = UserDB(
         nome=data.nome,
         email=data.email,
         cpf=data.cpf,
@@ -82,17 +82,21 @@ def register(data: UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(novo_user)
 
-    # pegar plano free
-    plano_free = db.query(Plan).filter(Plan.nome == "free").first()
+    # Buscar plano free
+    plano_free = db.query(PlanDB).filter(PlanDB.nome == "FREE").first()
 
-    if plano_free:
-        sub = Subscription(
-            user_id=novo_user.id,
-            plan_id=plano_free.id,
-            status="active"
-        )
-        db.add(sub)
-        db.commit()
+    if not plano_free:
+        raise HTTPException(status_code=500, detail="Plano FREE não encontrado")
+
+    # 🔗 Cria subscription
+    sub = SubscriptionDB(
+        user_id=novo_user.id,
+        plan_id=plano_free.id,
+        status="active"
+    )
+
+    db.add(sub)
+    db.commit() 
 
     token = criar_token(novo_user.id)
 
@@ -108,21 +112,32 @@ def register(data: UserCreate, db: Session = Depends(get_db)):
 @router.post("/login")
 def login(data: LoginData, db: Session = Depends(get_db)):
 
-    user = db.query(User).filter(User.email == data.email).first()
+    user = db.query(UserDB).filter(UserDB.email == data.email).first()
 
     if not user or not verificar_senha(data.senha, user.senha_hash):
         raise HTTPException(status_code=401, detail="Credenciais inválidas")
 
-    token = criar_token(int(user.id))
-
+    #token = criar_token(int(user.id))# antigo
+    token = criar_token(user.id)# novo 
+    
     return {
-        "token": token,
+        "access_token": token,
+        "token_type": "bearer",
         "user": {
             "id": user.id,
             "nome": user.nome,
             "email": user.email
         }
     }
+    # antigo se não funcionar o novo verificar aqui
+    #return {
+    #   "token": token,
+    #    "user": {
+    #        "id": user.id,
+    #        "nome": user.nome,
+    #       "email": user.email
+    #   }
+    #}
 
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
@@ -135,7 +150,7 @@ def get_current_user(
             raise HTTPException(status_code=401, detail="Token inválido")
         user_id = int(sub)
 
-        user = db.query(User).get(user_id)
+        user = db.query(UserDB).get(user_id)
 
         if not user:
             raise HTTPException(status_code=401, detail="Usuário não encontrado")
@@ -146,13 +161,28 @@ def get_current_user(
         raise HTTPException(status_code=401, detail="Token inválido")
 
 @router.get("/me")
-def me(user: User = Depends(get_current_user)):
-    return {
-        "id": user.id,
-        "nome": user.nome,
-        "email": user.email
-    }
+def me(
+    current_user: UserDB = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    sub = db.query(SubscriptionDB).filter(
+        SubscriptionDB.user_id == current_user.id,
+        SubscriptionDB.status == "active"
+    ).first()
 
+    plan_nome = None
+
+    if sub:
+        plan = db.query(PlanDB).filter(PlanDB.id == sub.plan_id).first()
+        if plan:
+            plan_nome = plan.nome
+
+    return {
+        "id": current_user.id,
+        "nome": current_user.nome,
+        "email": current_user.email,
+        "plano": plan_nome
+    }
 
 
 
