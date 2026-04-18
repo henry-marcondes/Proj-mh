@@ -1,5 +1,6 @@
+from enum import unique
 from sqlalchemy import create_engine, Column, String, Integer, Float, ForeignKey, Boolean
-from sqlalchemy.orm import sessionmaker, declarative_base, relationship
+from sqlalchemy.orm import sessionmaker, declarative_base, relationship, Mapped, mapped_column
 import time
 from sqlalchemy.exc import OperationalError
 
@@ -13,7 +14,7 @@ Base = declarative_base()
 class FonteEnergiaDB(Base):
     __tablename__ = "fontes_energia"
     id = Column(Integer, primary_key=True, index=True)
-    # ✅ FIX: Adicionar nullable=False para garantir integridade
+    # FIX: Adicionar nullable=False para garantir integridade
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, unique=False)
  
     # Placas Solares
@@ -33,8 +34,8 @@ class FonteEnergiaDB(Base):
     # Campo para privacidade dos dados
     publico = Column(Boolean, default=True)
 
-    # ✅ FIX: Nomenclatura consistente com User
-    user = relationship("User", back_populates="fontes_energia")
+    # FIX: Nomenclatura consistente com ClienteDB
+    user = relationship("UserDB", back_populates="fontes_energia")
 
 class EquipamentoDB(Base):
     __tablename__ = "equipamentos"
@@ -45,6 +46,49 @@ class EquipamentoDB(Base):
     hora_inicio = Column(Integer)
     hora_fim = Column(Integer) 
     publico = Column(Boolean, default=True)
+    user = relationship("UserDB",back_populates="equipamentos")
+# 👤 USER
+class UserDB(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    nome: Mapped[str] = mapped_column(String)
+    email: Mapped[str] = mapped_column(String)
+    cpf: Mapped[str] = mapped_column(String)
+    fone: Mapped[str] = mapped_column(String)
+    senha_hash: Mapped[str] = mapped_column(String)
+    subscriptions = relationship("SubscriptionDB", back_populates="user")
+    fontes_energia = relationship("FonteEnergiaDB", back_populates="user")
+    equipamentos = relationship("EquipamentoDB", back_populates="user")
+
+
+# 💳 ASSINATURA
+class SubscriptionDB(Base):
+    __tablename__ = "subscriptions"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    plan_id = Column(Integer, ForeignKey("plans.id"))
+
+    status = Column(String)
+
+    user = relationship("UserDB", back_populates="subscriptions")
+    plan = relationship("Plan", back_populates="subscriptions")
+
+
+# 📦 PLANOS
+class Plan(Base):
+    __tablename__ = "plans"
+
+    id = Column(Integer, primary_key=True)
+    nome = Column(String)
+    preco = Column(Integer)
+
+    limite_simulacoes = Column(Integer)
+    permite_salvar = Column(Boolean)
+    permite_comparar = Column(Boolean)
+
+    subscriptions = relationship("SubscriptionDB", back_populates="plan")
 
 def criar_tabelas():
     retentativas = 5

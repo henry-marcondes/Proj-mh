@@ -1,22 +1,13 @@
-from fastapi import Body, FastAPI, Depends, HTTPException, status,Header
-from auth import criar_token_admin, get_current_user
-from auth import router as auth_router
+from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from database import SessionLocal, criar_tabelas, Base
-from database import FonteEnergiaDB, EquipamentoDB, engine
+from database import SessionLocal,  criar_tabelas, Base
+from database import FonteEnergiaDB, EquipamentoDB, UserDB, SubscriptionDB, Plan, engine
 from pydantic import BaseModel
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 from contextlib import asynccontextmanager
 from calculo_solar import simular_dia_sequencial
-from routes import clientes, fontes, equipamentos, admin, user
-from models import User, Simulation
-from fastapi.openapi.docs import get_swagger_ui_html
-from fastapi.responses import HTMLResponse
-
-ADMIN_USER = "admin"
-ADMIN_PASSWORD = "1234"
-ADMIN_TOKEN = "token-super-secreto"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -28,36 +19,20 @@ async def lifespan(app: FastAPI):
     
 
 app = FastAPI(
-    lifespan=lifespan,
-    docs_url=None,       # 🔥 desativa o padrão
+    docs_url=None,
     redoc_url=None
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # depois mudar para allow_origins=["http://localhost:5173"]
+    allow_origins=["*"],
+    #allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-
-app.include_router(clientes.router, prefix="/clientes", tags=["Clientes"])
-app.include_router(fontes.router, prefix="/fontes", tags=["Fontes"])
-app.include_router(equipamentos.router, prefix="/equipamentos", tags=["Equipamentos"])
-app.include_router(auth_router)
-app.include_router(admin.router, prefix="/admin", tags=["Admin"])
-app.include_router(user.router)
-Base.metadata.create_all(bind=engine)
-
-@app.post("/admin/login")
-def login_admin(dados: dict):
-    if dados.get("usuario") == ADMIN_USER and dados.get("senha") == ADMIN_PASSWORD:
-        return {"token": ADMIN_TOKEN}
-    raise HTTPException(status_code=401, detail="Credenciais inválidas")
-
-def verificar_admin(authorization: str = Header(None)):
-    if authorization != f"Bearer {ADMIN_TOKEN}":
-        raise HTTPException(status_code=403, detail="Acesso negado")
+# Criar tabelas ao iniciar
+#criar_tabelas()
 
 # Dependência para abrir/fechar conexão com o banco
 def get_db():
@@ -73,7 +48,7 @@ class ClienteSchema(BaseModel):
     cpf: str
     fone : str | None = None
 
-class Equipamentos(BaseModel):
+class EquipamentosUpdate(BaseModel):
     nome: str
     watts: float
     hora_inicio: int
@@ -81,14 +56,14 @@ class Equipamentos(BaseModel):
     publico: bool = True
 
 class InventarioSchema(BaseModel):
-    cliente_id: int
-    lista_equipamentos: List[Equipamentos]
+    user_id: int
+    lista_equipamentos: List[EquipamentosUpdate]
 
 class SimulacaoSchema(BaseModel):
     potencia_painel: float
     bateria_ah: float
     clima: str # "sol", "nublado" ou "chuva"
-    equipamentos: List[Equipamentos]
+    equipamentos: List[EquipamentosUpdate]
     carga_inicial_wh: Optional[float] = None
     
 class FonteGeracao(BaseModel):
@@ -101,11 +76,12 @@ class SimuladorInput(BaseModel):
     potencia_painel: float
     bateria_ah: float
     clima: str
-    equipamentos: List[Equipamentos]
+    equipamentos: List[EquipamentosUpdate]
     fontes_geracao: Optional[List[FonteGeracao]] = []
     carga_inicial_wh: Optional[float] = None
 
-class FonteCreate(BaseModel):
+class FonteEnergiaSchema(BaseModel):
+    user_id: int  # Opcional por enquanto para teste
     painel_watts: float
     tipo_controlador: str
     bateria_ah: int
@@ -114,89 +90,129 @@ class FonteCreate(BaseModel):
     dcdc_amperes: float
     publico: bool = True
 
-
-class SimulacaoSave(BaseModel):
+class UserCreate(BaseModel):
     nome: str
-    dados: Dict[str, Any]
+    email: str
+    cpf: str
+    fone: str
+    senha: str
 
-@app.post("/fontes")
-def criar_fonte(
-    dados: FonteCreate,
-    user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    nova = FonteEnergiaDB(
-        user_id=user.id,
-        painel_watts=dados.painel_watts,
-        bateria_ah=dados.bateria_ah,
-        tipo_controlador=dados.tipo_controlador,
-        bateria_tipo=dados.bateria_tipo,
-        conversor_acdc_amperes=dados.conversor_acdc_amperes,
-        dcdc_amperes=dados.dcdc_amperes,
-        publico=dados.publico
+
+@app.post("/users/")
+def criar_user(dados: UserCreate, db: Session = Depends(get_db)):
+    existente = db.query(UserDB).filter(UserDB.email == dados.email).first()
+    
+    if existente:
+        raise HTTPException(status_code=400, detail="Email já cadastrado")
+
+    novo_user = UserDB(
+        nome=dados.nome,
+        email=dados.email,
+        cpf=dados.cpf,
+        fone=dados.fone,
+        senha_hash=dados.senha
     )
+    
+    try:
+        db.add(novo_user)
+        db.commit()
+        db.refresh(novo_user)
+    except Exception as e:
+        db.rollback()
+        print("Erro USER: ",e)
+        raise HTTPException(status_code=500, detail=str(e))
 
-    db.add(nova)
-    db.commit()
-    db.refresh(nova)
+    # 🔥 pegar plano FREE
+    plano_free = db.query(Plan).filter(Plan.nome == "FREE").first()
 
-    return nova
+    if not plano_free:
+        raise HTTPException(status_code=500, detail="Plano FREE não encontrado")
 
-@app.get("/fontes")
-def listar_fontes(
-    user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    return db.query(FonteEnergiaDB).filter(
-        FonteEnergiaDB.user_id == user.id
-    ).all()
+    # 🔥 criar assinatura
+    sub = SubscriptionDB(
+        user_id=novo_user.id,
+        plan_id=plano_free.id,
+        status="active"
+    )
+    try:
+        db.add(sub)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        print("ERRO SUB: ",e)
+        raise HTTPException(status_code=500, detail= str(e))
 
+    return novo_user
+
+@app.post("/fontes/")
+def criar_fonte(dados: FonteEnergiaSchema, db: Session = Depends(get_db)):
+    # ✅ FIX: Validar cliente_id antes de tudo
+    if not dados.user_id or dados.user_id <= 0:
+        raise HTTPException(
+            status_code=400, 
+            detail="user_id é obrigatório e deve ser válido"
+        )
+    
+    # ✅ FIX: Verificar se usuario existe
+    usuario = db.query(UserDB).filter(UserDB.id == dados.user_id).first()
+    if not usuario:
+        raise HTTPException(
+            status_code=404, 
+            detail=f"Usuario com ID {dados.user_id} não encontrado"
+        )
+    
+    try:
+        nova_fonte = FonteEnergiaDB(
+            user_id=dados.user_id,
+            painel_watts=dados.painel_watts,
+            tipo_controlador=dados.tipo_controlador,
+            bateria_ah=dados.bateria_ah,
+            bateria_tipo=dados.bateria_tipo,
+            conversor_acdc_amperes=dados.conversor_acdc_amperes,
+            dcdc_amperes=dados.dcdc_amperes,
+            publico=dados.publico
+        )
+        db.add(nova_fonte)
+        db.commit()
+        db.refresh(nova_fonte)
+        return nova_fonte
+    except Exception as e:
+        db.rollback()
+        print(f"❌ Erro ao salvar fonte: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Erro ao salvar configuração: {str(e)}"
+        )
+
+# 1. Primeiro a rota de lista (Mais genérica)
+@app.get("/fontes/")
+def listar_todas_fontes(db: Session = Depends(get_db)):
+    return db.query(FonteEnergiaDB).all()
+
+# 2. Depois a rota por ID de Fonte (Específica)
 @app.get("/fontes/{fonte_id}") # Adicionada a / aqui!
-def buscar_fonte(
-    fonte_id: int,
-    user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    fonte = db.query(FonteEnergiaDB).filter(
-        FonteEnergiaDB.id == fonte_id,
-        FonteEnergiaDB.user_id == user.id
-    ).first()
-
+def buscar_fonte(fonte_id: int, db: Session = Depends(get_db)):
+    fonte = db.query(FonteEnergiaDB).filter(FonteEnergiaDB.id == fonte_id).first()
     if not fonte:
-        raise HTTPException(status_code=404, detail="Fonte não encontrada")
+        raise HTTPException(status_code=404, detail="Fonte não Encontrada")
+    return fonte 
 
-    return fonte
+# 3. E a rota do Cliente (Relacional)
+@app.get("/clientes/{user_id}/fontes/")
+def listar_fontes_do_cliente(user_id: int, db: Session = Depends(get_db)):
+    return db.query(FonteEnergiaDB).filter(FonteEnergiaDB.user_id == user_id).all()
 
 @app.get("/clientes/{user_id}")
 def buscar_cliente_por_id(user_id: int, db: Session = Depends(get_db)):
-    user = db.query(User).filter(user.id == user_id).first()
-    if not user:
+    cliente = db.query(UserDB).filter(UserDB.id == user_id).first()
+    if not cliente:
         raise HTTPException(status_code=404, detail="Cliente não encontrado")
-    return user
-
-@app.post("/clientes/", status_code=status.HTTP_201_CREATED)
-def criar_cliente(user: ClienteSchema, db: Session = Depends(get_db)):
-    
-    # 1. Busca se já existe cliente com email ou cpf
-    cliente_existente = db.query(User).filter((User.email == user.email) | (User.cpf == user.cpf)).first()
-    if cliente_existente:
-        raise HTTPException(status_code=400, detail="Cliente com email ou CPF já existe")
-    
-    # 2. Se não existir, cria o cliente normalmente
-    novo_cliente = User(**user.model_dump())
-    db.add(novo_cliente)
-    db.commit()
-    db.refresh(novo_cliente)
-    return novo_cliente
+    return cliente
 
 @app.post("/simulador/ciclo-24h")
-def post_simulacao(
-    params: SimuladorInput,
-    user: User = Depends(get_current_user)
-):
+def post_simulacao(params: SimuladorInput):
+
     print("🔥 FONTES RECEBIDAS:", params.fontes_geracao)
-    print(user.id)
-    print(user.email)
 
     # Usando model_dump() conforme sua observação correta!
     lista_dicts = [eq.model_dump() for eq in params.equipamentos]
@@ -211,14 +227,26 @@ def post_simulacao(
 )
     return resultado
 
-@app.get("/equipamentos")
-def listar_equipamentos(
-    user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    return db.query(EquipamentoDB).filter(
-        EquipamentoDB.user_id == user.id
+@app.post("/login")
+def login(dados: dict, db: Session = Depends(get_db)):
+    # Busca por e-mail ou CPF
+    cliente = db.query(UserDB).filter(
+        (UserDB.email == dados.get("identificador")) | 
+        (UserDB.cpf == dados.get("identificador"))
+    ).first()
+
+    if not cliente:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    
+    return {"id": cliente.id, "nome": cliente.nome}
+
+# ✅ NOVO: Buscar equipamentos de um cliente
+@app.get("/clientes/{cliente_id}/equipamentos/")
+def listar_equipamentos_do_cliente(user_id: int, db: Session = Depends(get_db)):
+    equipamentos = db.query(EquipamentoDB).filter(
+        EquipamentoDB.user_id == user_id
     ).all()
+    return equipamentos
 
 # ✅ NOVO: Deletar um equipamento específico
 @app.delete("/equipamentos/{equipamento_id}")
@@ -237,11 +265,12 @@ def deletar_equipamento(equipamento_id: int, db: Session = Depends(get_db)):
 
 # ✅ NOVO: Atualizar equipamento (CORRIGIDO)
 @app.put("/equipamentos/{equipamento_id}")
-def atualizar_equipamento(equipamento_id: int, dados: Equipamentos, db: Session = Depends(get_db)):
-    equipamento = db.query(EquipamentoDB).filter(
-        EquipamentoDB.id == equipamento_id
-    ).first()
+def atualizar_equipamento(equipamento_id: int, dados: EquipamentosUpdate, db: Session = Depends(get_db)):
     
+    equipamento = db.query(EquipamentoDB).filter(
+        EquipamentoDB.id == equipamento_id,
+        EquipamentoDB.user_id == dados.user_id
+    ).first()
     if not equipamento:
         raise HTTPException(status_code=404, detail="Equipamento não encontrado")
     
@@ -255,55 +284,26 @@ def atualizar_equipamento(equipamento_id: int, dados: Equipamentos, db: Session 
     return equipamento
 
 @app.post("/equipamentos/")
-def criar_equipamento(
-    dados: Equipamentos,
-    user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    novo = EquipamentoDB(
-        user_id=user.id,
-        nome=dados.nome,
-        watts=dados.watts,
-        hora_inicio=dados.hora_inicio,
-        hora_fim=dados.hora_fim,
-        publico=dados.publico
-    )
+def salvar_equipamentos(dados: InventarioSchema, db: Session = Depends(get_db)):
+    # 1. Remove equipamentos antigos desse cliente para não duplicar
+    db.query(EquipamentoDB).filter(
+        EquipamentoDB.user_id == dados.user_id
+        ).delete(synchronize_session=False)
 
-    db.add(novo)
+    # 2. Salva a nova lista enviada pelo frontend
+    for item in dados.lista_equipamentos:
+        novo_item = EquipamentoDB(
+            user_id=dados.user_id,
+            nome=item.nome,
+            watts=item.watts,
+            hora_inicio=item.hora_inicio,
+            hora_fim=item.hora_fim,
+            publico=item.publico
+        )
+        db.add(novo_item)
+    
     db.commit()
-    db.refresh(novo)
-
-    return novo
-
-
-@app.post("/simulacoes/salvar")
-def salvar_simulacao(
-    payload: SimulacaoSave,
-    user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    nova = Simulation(
-        user_id=user.id,
-        nome=payload.nome,
-        dados=payload.dados
-    )
-
-    db.add(nova)
-    db.commit()
-    db.refresh(nova)
-
-    return {"msg": "Simulação salva", "id": nova.id}
-
-@app.get("/simulacoes")
-def listar_simulacoes(
-    user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    simulacoes = db.query(Simulation).filter(
-        Simulation.user_id == user.id
-    ).all()
-
-    return simulacoes
+    return {"status": "sucesso", "salvos": len(dados.lista_equipamentos)}
 
 
 @app.get("/docs", include_in_schema=False)
@@ -312,27 +312,41 @@ def custom_swagger_ui_html():
     <!DOCTYPE html>
     <html>
     <head>
-        <title>API - Motorhome Solar</title>
+        <title>API Docs - Dark</title>
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist/swagger-ui.css">
         <style>
             body {
-                background-color: #121212;
+                background-color: #0f172a;
             }
+
             .swagger-ui {
                 filter: invert(1) hue-rotate(180deg);
             }
+
             .swagger-ui img {
                 filter: invert(1) hue-rotate(180deg);
+            }
+
+            /* Ajustes extras */
+            .swagger-ui .topbar {
+                display: none;
             }
         </style>
     </head>
     <body>
         <div id="swagger-ui"></div>
+
         <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist/swagger-ui-bundle.js"></script>
         <script>
             SwaggerUIBundle({
                 url: '/openapi.json',
                 dom_id: '#swagger-ui',
+                deepLinking: true,
+                presets: [
+                    SwaggerUIBundle.presets.apis,
+                    SwaggerUIBundle.SwaggerUIStandalonePreset
+                ],
+                layout: "BaseLayout"
             });
         </script>
     </body>
