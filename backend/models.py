@@ -1,5 +1,5 @@
 from sqlalchemy import JSON, Float, Column, Integer, String, Boolean, ForeignKey, JSON
-from sqlalchemy.orm import Mapped, mapped_column, relationship, relationships  
+from sqlalchemy.orm import Mapped, mapped_column, relationship  
 from database import Base
 from enum import unique
 
@@ -19,6 +19,7 @@ class UserDB(Base):
     #simulations = relationships("Simulation", back_populates="user")
 
 # 📦 PLANOS
+
 class PlanDB(Base):
     __tablename__ = "plans"
 
@@ -30,8 +31,14 @@ class PlanDB(Base):
     permite_salvar = Column(Boolean)
     permite_comparar = Column(Boolean)
 
-    subscriptions = relationship("SubscriptionDB", back_populates="plan")
+    max_equipamentos = Column(Integer)
+    max_fontes = Column(Integer)
+    max_dias_simulacao = Column(Integer)
+    max_projetos = Column(Integer)
 
+    stripe_price_id = Column(String)
+
+    subscriptions = relationship("SubscriptionDB", back_populates="plan")
 # 💳 ASSINATURA 
 class SubscriptionDB(Base):
     __tablename__ = "subscriptions"
@@ -46,12 +53,11 @@ class SubscriptionDB(Base):
     plan = relationship("PlanDB", back_populates="subscriptions")
     
 
-class Simulation(Base):
+class SimulationDB(Base):
     __tablename__ = "simulations"
 
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"))
-
     nome = Column(String)
     dados = Column(JSON)  # salva tudo da simulação
 

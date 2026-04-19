@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends
 from fastapi import FastAPI, HTTPException, status
 from sqlalchemy.orm import Session
-from database import SessionLocal, FonteEnergiaDB, get_db
-
+from database import SessionLocal, get_db
+from models import FonteEnergiaDB
 
 router = APIRouter()
 

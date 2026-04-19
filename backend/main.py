@@ -3,11 +3,12 @@ from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from database import Base, SessionLocal,  criar_tabelas, engine
-from models import FonteEnergiaDB, EquipamentoDB, UserDB, SubscriptionDB, PlanDB
-from pydantic import BaseModel, EmailStr
-from typing import List, Optional
+from models import FonteEnergiaDB, EquipamentoDB, SimulationDB, UserDB, SubscriptionDB, PlanDB
+from pydantic import BaseModel, EmailStr, Field
+from typing import List, Optional, cast
 from contextlib import asynccontextmanager
 from calculo_solar import simular_dia_sequencial
+from services.plan_dependencies import get_current_plan
 from auth import get_current_user
 from auth import router as auth_router
 
@@ -81,6 +82,7 @@ class SimuladorInput(BaseModel):
     equipamentos: List[EquipamentosUpdate]
     fontes_geracao: Optional[List[FonteGeracao]] = []
     carga_inicial_wh: Optional[float] = None
+    dias: int = Field(default=1, ge=1)
 
 class FonteEnergiaSchema(BaseModel):
     user_id: int  # Opcional por enquanto para teste
@@ -99,7 +101,7 @@ class UserCreate(BaseModel):
     fone: str | None = None
     senha: str
 
-
+#------------------------User/login--------------------------
 @app.post("/users/")
 def criar_user(dados: UserCreate, db: Session = Depends(get_db)):
     existente = db.query(UserDB).filter(UserDB.email == dados.email).first()
@@ -144,90 +146,7 @@ def criar_user(dados: UserCreate, db: Session = Depends(get_db)):
         print("ERRO SUB: ",e)
         raise HTTPException(status_code=500, detail= str(e))
 
-    return novo_user
-
-@app.post("/fontes/")
-def criar_fonte(dados: FonteEnergiaSchema, db: Session = Depends(get_db)):
-    # ✅ FIX: Validar cliente_id antes de tudo
-    if not dados.user_id or dados.user_id <= 0:
-        raise HTTPException(
-            status_code=400, 
-            detail="user_id é obrigatório e deve ser válido"
-        )
-    
-    # ✅ FIX: Verificar se usuario existe
-    usuario = db.query(UserDB).filter(UserDB.id == dados.user_id).first()
-    if not usuario:
-        raise HTTPException(
-            status_code=404, 
-            detail=f"Usuario com ID {dados.user_id} não encontrado"
-        )
-    
-    try:
-        nova_fonte = FonteEnergiaDB(
-            user_id=dados.user_id,
-            painel_watts=dados.painel_watts,
-            tipo_controlador=dados.tipo_controlador,
-            bateria_ah=dados.bateria_ah,
-            bateria_tipo=dados.bateria_tipo,
-            conversor_acdc_amperes=dados.conversor_acdc_amperes,
-            dcdc_amperes=dados.dcdc_amperes,
-            publico=dados.publico
-        )
-        db.add(nova_fonte)
-        db.commit()
-        db.refresh(nova_fonte)
-        return nova_fonte
-    except Exception as e:
-        db.rollback()
-        print(f"❌ Erro ao salvar fonte: {str(e)}")
-        raise HTTPException(
-            status_code=500, 
-            detail=f"Erro ao salvar configuração: {str(e)}"
-        )
-
-# 1. Primeiro a rota de lista (Mais genérica)
-@app.get("/fontes/")
-def listar_todas_fontes(db: Session = Depends(get_db)):
-    return db.query(FonteEnergiaDB).all()
-
-# 2. Depois a rota por ID de Fonte (Específica)
-@app.get("/fontes/{fonte_id}") # Adicionada a / aqui!
-def buscar_fonte(fonte_id: int, db: Session = Depends(get_db)):
-    fonte = db.query(FonteEnergiaDB).filter(FonteEnergiaDB.id == fonte_id).first()
-    if not fonte:
-        raise HTTPException(status_code=404, detail="Fonte não Encontrada")
-    return fonte 
-
-# 3. E a rota do Cliente (Relacional)
-@app.get("/clientes/{user_id}/fontes/")
-def listar_fontes_do_cliente(user_id: int, db: Session = Depends(get_db)):
-    return db.query(FonteEnergiaDB).filter(FonteEnergiaDB.user_id == user_id).all()
-
-@app.get("/clientes/{user_id}")
-def buscar_cliente_por_id(user_id: int, db: Session = Depends(get_db)):
-    cliente = db.query(UserDB).filter(UserDB.id == user_id).first()
-    if not cliente:
-        raise HTTPException(status_code=404, detail="Cliente não encontrado")
-    return cliente
-
-@app.post("/simulador/ciclo-24h")
-def post_simulacao(params: SimuladorInput):
-
-    print("🔥 FONTES RECEBIDAS:", params.fontes_geracao)
-
-    # Usando model_dump() conforme sua observação correta!
-    lista_dicts = [eq.model_dump() for eq in params.equipamentos]
-
-    resultado = simular_dia_sequencial(
-        potencia_painel_w=params.potencia_painel,
-        capacidade_bateria_ah=params.bateria_ah,
-        lista_equipamentos=lista_dicts,
-        lista_fontes_geracao=[f.model_dump() for f in (params.fontes_geracao or [])], 
-        clima=params.clima,
-        carga_inicial_wh=params.carga_inicial_wh
-)
-    return resultado
+    return novo_user 
 
 @app.post("/login")
 def login(dados: dict, db: Session = Depends(get_db)):
@@ -242,30 +161,166 @@ def login(dados: dict, db: Session = Depends(get_db)):
     
     return {"id": cliente.id, "nome": cliente.nome}
 
-# ✅ NOVO: Buscar equipamentos de um cliente
-@app.get("/clientes/{cliente_id}/equipamentos/")
-def listar_equipamentos_do_cliente(user_id: int, db: Session = Depends(get_db)):
-    equipamentos = db.query(EquipamentoDB).filter(
-        EquipamentoDB.user_id == user_id
-    ).all()
-    return equipamentos
+#-------------------------Fontes--------------------------------
+@app.post("/fontes/")
+def criar_fonte(
+    dados: FonteEnergiaSchema,
+    db: Session = Depends(get_db),
+    current_user: UserDB = Depends(get_current_user),
+    plan: PlanDB = Depends(get_current_plan)
+):
+    # 🔢 valida limite
+    count = db.query(FonteEnergiaDB).filter(
+        FonteEnergiaDB.user_id == current_user.id
+    ).count()
 
-# ✅ NOVO: Deletar um equipamento específico
+    if plan.max_fontes is not None and count >= plan.max_fontes:
+        raise HTTPException(
+            403,
+            f"Plano {plan.nome} permite até {plan.max_fontes} fontes"
+        )
+
+    nova_fonte = FonteEnergiaDB(
+        user_id=current_user.id,  # 🔐 sempre do token
+        painel_watts=dados.painel_watts,
+        tipo_controlador=dados.tipo_controlador,
+        bateria_ah=dados.bateria_ah,
+        bateria_tipo=dados.bateria_tipo,
+        conversor_acdc_amperes=dados.conversor_acdc_amperes,
+        dcdc_amperes=dados.dcdc_amperes,
+        publico=dados.publico
+    )
+
+    db.add(nova_fonte)
+    db.commit()
+    db.refresh(nova_fonte)
+
+    return nova_fonte
+
+# 1. Primeiro a rota de lista (Mais genérica)
+@app.get("/fontes/")
+def listar_todas_fontes(db: Session = Depends(get_db)):
+    return db.query(FonteEnergiaDB).all()
+
+# 2. Depois a rota por ID de Fonte (Específica)
+@app.get("/fontes/")
+def listar_fontes(
+    db: Session = Depends(get_db),
+    current_user: UserDB = Depends(get_current_user)
+):
+    return db.query(FonteEnergiaDB).filter(
+        FonteEnergiaDB.user_id == current_user.id
+    ).all()
+
+@app.get("/fontes/{fonte_id}")
+def buscar_fonte(
+    fonte_id: int,
+    db: Session = Depends(get_db),
+    current_user: UserDB = Depends(get_current_user)
+):
+    fonte = db.query(FonteEnergiaDB).filter(
+        FonteEnergiaDB.id == fonte_id,
+        FonteEnergiaDB.user_id == current_user.id
+    ).first()
+
+    if not fonte:
+        raise HTTPException(404, "Fonte não encontrada")
+
+    return fonte
+
+@app.delete("/fontes/{fonte_id}")
+def deletar_fonte(
+    fonte_id: int,
+    db: Session = Depends(get_db),
+    current_user: UserDB = Depends(get_current_user)
+):
+    fonte = db.query(FonteEnergiaDB).filter(
+        FonteEnergiaDB.id == fonte_id,
+        FonteEnergiaDB.user_id == current_user.id
+    ).first()
+
+    if not fonte:
+        raise HTTPException(404, "Fonte não encontrada")
+
+    db.delete(fonte)
+    db.commit()
+
+    return {"status": "sucesso"}
+
+#--------------------------------Simulador------------------------------
+@app.post("/simulador/ciclo-24h")
+def post_simulacao(
+    params: SimuladorInput,
+    current_user: UserDB = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    plan: PlanDB = Depends(get_current_plan)
+):
+    # 🔥 DEBUG (opcional)
+    print("🔥 USER:", current_user.id)
+    print("🔥 FONTES RECEBIDAS:", params.fontes_geracao)
+
+    # 🔢 1. LIMITE DE EXECUÇÕES (se existir)
+    count = db.query(SimulationDB).filter(SimulationDB.user_id == current_user.id).count()
+
+    limite = cast(Optional[int], plan.limite_simulacoes)
+    max_dias = cast(Optional[int], plan.max_dias_simulacao)
+
+    if limite is not None and count >= limite:
+        raise HTTPException(403, "Limite de simulações atingido")
+
+    if max_dias is not None and params.dias > max_dias:
+        raise HTTPException(403, "Limite de dias excedido")
+    # 🔄 transforma dados
+    lista_dicts = [eq.model_dump() for eq in params.equipamentos]
+
+    lista_fontes = [
+        f.model_dump() for f in (params.fontes_geracao or [])
+    ]
+
+    # ⚙️ execução da simulação
+    resultado = simular_dia_sequencial(
+        potencia_painel_w=params.potencia_painel,
+        capacidade_bateria_ah=params.bateria_ah,
+        lista_equipamentos=lista_dicts,
+        lista_fontes_geracao=lista_fontes,
+        clima=params.clima,
+        carga_inicial_wh=params.carga_inicial_wh
+    )
+
+    return resultado
+
+#-------------------------Equipamentos-----------------------------------
+#  Buscar equipamentos de um cliente
+@app.get("/equipamentos/")
+def listar_equipamentos(
+    db: Session = Depends(get_db),
+    current_user: UserDB = Depends(get_current_user)
+    ):
+    return db.query(EquipamentoDB).filter(
+        EquipamentoDB.user_id == current_user.id
+        ).all()
+
+# Deletar um equipamento específico
 @app.delete("/equipamentos/{equipamento_id}")
-def deletar_equipamento(equipamento_id: int, db: Session = Depends(get_db)):
+def deletar_equipamento(
+    equipamento_id: int,
+    db: Session = Depends(get_db),
+    current_user: UserDB = Depends(get_current_user)
+):
     equipamento = db.query(EquipamentoDB).filter(
-        EquipamentoDB.id == equipamento_id
+        EquipamentoDB.id == equipamento_id,
+        EquipamentoDB.user_id == current_user.id
     ).first()
     
     if not equipamento:
-        raise HTTPException(status_code=404, detail="Equipamento não encontrado")
+        raise HTTPException(404, "Equipamento não encontrado")
     
     db.delete(equipamento)
     db.commit()
-    return {"status": "sucesso", "mensagem": "Equipamento deletado"}
 
+    return {"status": "sucesso"}
 
-# ✅ NOVO: Atualizar equipamento (CORRIGIDO)
+# Atualizar equipamento (CORRIGIDO)
 @app.put("/equipamentos/{equipamento_id}")
 def atualizar_equipamento(
     equipamento_id: int,
@@ -282,7 +337,7 @@ def atualizar_equipamento(
     if not equipamento:
         raise HTTPException(status_code=404, detail="Equipamento não encontrado")
     
-    for key, value in dados.model_dump().items():
+    for key, value in dados.model_dump(exclude_unset=True).items():
         if hasattr(equipamento, key):
             setattr(equipamento, key, value)
     
@@ -292,16 +347,43 @@ def atualizar_equipamento(
     return equipamento
 
 @app.post("/equipamentos/")
-def salvar_equipamentos(dados: InventarioSchema, db: Session = Depends(get_db)):
-    # 1. Remove equipamentos antigos desse cliente para não duplicar
-    db.query(EquipamentoDB).filter(
-        EquipamentoDB.user_id == dados.user_id
-        ).delete(synchronize_session=False)
+def criar_equipamento(
+    dados: EquipamentosUpdate,
+    db: Session = Depends(get_db),
+    current_user: UserDB = Depends(get_current_user)
+):
+    novo = EquipamentoDB(
+        user_id=current_user.id,
+        nome=dados.nome,
+        watts=dados.watts,
+        hora_inicio=dados.hora_inicio,
+        hora_fim=dados.hora_fim,
+        publico=dados.publico
+    )
 
-    # 2. Salva a nova lista enviada pelo frontend
+    db.add(novo)
+    db.commit()
+    db.refresh(novo)
+
+    return novo
+
+@app.post("/equipamentos/lote")
+def salvar_equipamentos(
+    dados: InventarioSchema,
+    db: Session = Depends(get_db),
+    current_user: UserDB = Depends(get_current_user),
+    plan: PlanDB = Depends(get_current_plan)
+):
+    # 🔢 valida limite
+    if plan.max_equipamentos is not None:
+        max_eq = cast(Optional[int], plan.max_equipamentos)
+        if max_eq is not None and len(dados.lista_equipamentos) > max_eq:
+            raise HTTPException(403, f"Plano {plan.nome} permite até {max_eq} equipamentos" )
+    
+    # 💾 salva novos
     for item in dados.lista_equipamentos:
         novo_item = EquipamentoDB(
-            user_id=dados.user_id,
+            user_id=current_user.id,
             nome=item.nome,
             watts=item.watts,
             hora_inicio=item.hora_inicio,
@@ -309,11 +391,15 @@ def salvar_equipamentos(dados: InventarioSchema, db: Session = Depends(get_db)):
             publico=item.publico
         )
         db.add(novo_item)
-    
+
     db.commit()
-    return {"status": "sucesso", "salvos": len(dados.lista_equipamentos)}
 
+    return {
+        "status": "sucesso",
+        "salvos": len(dados.lista_equipamentos)
+    }
 
+#------------------------------UI /docs Tema Escuro-------------------------------------------
 @app.get("/docs", include_in_schema=False)
 def custom_swagger_ui_html():
     return HTMLResponse("""
