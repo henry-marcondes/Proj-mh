@@ -101,14 +101,14 @@ def register(data: UserCreate, db: Session = Depends(get_db)):
     token = criar_token(novo_user.id)
 
     return {
-    "token": token,
-    "user": {
-        "id": novo_user.id,
-        "nome": novo_user.nome,
-        "email": novo_user.email
-    }
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {
+            "id": novo_user.id,
+            "nome": novo_user.nome,
+            "email": novo_user.email
+        }
 }
-
 @router.post("/login")
 def login(data: LoginData, db: Session = Depends(get_db)):
 
@@ -129,16 +129,7 @@ def login(data: LoginData, db: Session = Depends(get_db)):
             "email": user.email
         }
     }
-    # antigo se não funcionar o novo verificar aqui
-    #return {
-    #   "token": token,
-    #    "user": {
-    #        "id": user.id,
-    #        "nome": user.nome,
-    #       "email": user.email
-    #   }
-    #}
-
+   
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db)

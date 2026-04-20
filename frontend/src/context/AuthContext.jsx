@@ -6,18 +6,24 @@ export const AuthContext = createContext();
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
 
-  useEffect(() => {
-    const token = localStorage.getItem("token");
+  // 🔥 ao abrir o sistema
+useEffect(() => {
+  const token = localStorage.getItem("token");
 
-    if (token) {
-      getMe(token)
-        .then(res => setUser(res.data))
-        .catch(() => logout());
-    }
-  }, []);
+  if (!token) return;
+
+  getMe()
+    .then(res => setUser(res.data))
+    .catch(() => {
+      console.warn("Token inválido");
+      localStorage.removeItem("token");
+      setUser(null);
+      // ❌ NÃO redireciona aqui
+    });
+}, []);
 
   const loginUser = (data) => {
-    localStorage.setItem("token", data.token);
+    localStorage.setItem("token", data.access_token); // 🔥 padrão correto
     localStorage.setItem("user", JSON.stringify(data.user));
     setUser(data.user);
   };
@@ -26,10 +32,11 @@ export function AuthProvider({ children }) {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     setUser(null);
+    //window.location.href = "/login"; // evita loop
   };
 
   return (
-    <AuthContext.Provider value={{ user, setUser, loginUser, logout }}>
+    <AuthContext.Provider value={{ user, loginUser, logout }}>
       {children}
     </AuthContext.Provider>
   );

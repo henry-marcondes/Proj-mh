@@ -1,6 +1,6 @@
 import { useContext, useEffect, useState } from "react";
 import { AuthContext } from "../context/AuthContext";
-import axios from "axios";
+import api from "../services/api"; // ✅ usa api central
 import { Link } from "react-router-dom";
 
 export default function Dashboard() {
@@ -9,20 +9,19 @@ export default function Dashboard() {
   const [equipamentos, setEquipamentos] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // ✅ carregar dados
   useEffect(() => {
     const carregarDados = async () => {
-      const token = localStorage.getItem("token");
-
       try {
-        const response = await axios.get("http://localhost:8000/equipamentos", {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
-
+        const response = await api.get("/equipamentos");
         setEquipamentos(response.data || []);
       } catch (error) {
         console.error("Erro ao carregar equipamentos", error);
+
+        // 🔐 se token inválido
+        if (error.response?.status === 401) {
+          logout();
+        }
       } finally {
         setLoading(false);
       }
@@ -31,13 +30,17 @@ export default function Dashboard() {
     carregarDados();
   }, []);
 
+  // ⛔ evita quebrar tela
   if (!user) {
     return <p style={{ padding: "20px" }}>⏳ Carregando...</p>;
   }
 
   // 🔢 métricas
   const totalEquipamentos = equipamentos.length;
-  const consumoTotal = equipamentos.reduce((acc, e) => acc + (e.watts || 0), 0);
+  const consumoTotal = equipamentos.reduce(
+    (acc, e) => acc + (e.watts || 0),
+    0
+  );
 
   return (
     <div style={{ padding: "20px", background: "#0f172a", minHeight: "100vh", color: "white" }}>
@@ -48,7 +51,17 @@ export default function Dashboard() {
           <h1>👋 Olá, {user.nome}</h1>
           <p style={{ color: "#94a3b8" }}>Bem-vindo ao seu painel</p>
         </div>
-        <button onClick={logout} style={{ background: "#dc2626", color: "white", padding: "10px", border: "none", borderRadius: "5px" }}>
+
+        <button
+          onClick={logout}
+          style={{
+            background: "#dc2626",
+            color: "white",
+            padding: "10px",
+            border: "none",
+            borderRadius: "5px"
+          }}
+        >
           Sair
         </button>
       </div>
@@ -73,14 +86,16 @@ export default function Dashboard() {
 
       </div>
 
-      {/* LISTA DE EQUIPAMENTOS */}
+      {/* LISTA */}
       <div style={{ background: "#1e293b", padding: "20px", borderRadius: "10px" }}>
         <h2>🔌 Seus Equipamentos</h2>
 
         {loading ? (
           <p>Carregando...</p>
         ) : equipamentos.length === 0 ? (
-          <p style={{ color: "#94a3b8" }}>Nenhum equipamento cadastrado.</p>
+          <p style={{ color: "#94a3b8" }}>
+            Nenhum equipamento cadastrado.
+          </p>
         ) : (
           <ul style={{ marginTop: "15px" }}>
             {equipamentos.map((e) => (
@@ -94,9 +109,17 @@ export default function Dashboard() {
 
       {/* AÇÕES */}
       <div style={{ marginTop: "30px", display: "flex", gap: "10px" }}>
-        <Link to="/equipamentos" style={btnStyle}>➕ Adicionar Equipamento</Link>
-        <Link to="/fontes" style={btnStyle}>⚡ Configurar Energia</Link>
-        <Link to="/simulador" style={btnStyle}>📊 Simular</Link>
+        <Link to="/equipamentos" style={btnStyle}>
+          ➕ Equipamentos
+        </Link>
+
+        <Link to="/fontes" style={btnStyle}>
+          ⚡ Fontes
+        </Link>
+
+        <Link to="/simulador" style={btnStyle}>
+          📊 Simular
+        </Link>
       </div>
 
     </div>

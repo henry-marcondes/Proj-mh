@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useContext } from 'react';
-import axios from 'axios';
+import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Link } from "react-router-dom";
+import api from "../services/api";
 
 function Simulador() {
   const [dados, setDados] = useState([]);
@@ -16,32 +16,13 @@ function Simulador() {
   
   // ✅ NOVO: Equipamentos dinâmicos
   const [equipamentos, setEquipamentos] = useState([]);
-  const [carregandoEquipamentos, setCarregandoEquipamentos] = useState(false);
 
     const carregarEquipamentos = async () => {
-    const token = localStorage.getItem("token");
-
-    setCarregandoEquipamentos(true);
-
-    try {
-        const response = await axios.get(
-        'http://localhost:8000/equipamentos',
-      {
-            headers: {
-            Authorization: `Bearer ${token}`
-            }
-        }
-        );
-
+    const response = await api.get("/equipamentos");
         setEquipamentos(response.data || []);
         console.log("✅ Equipamentos carregados:", response.data);
 
-    } catch (error) {
-        console.error("❌ Erro ao carregar equipamentos:", error);
-    } finally {
-        setCarregandoEquipamentos(false);
-    }
-  };
+      };
 
   // ✅ NOVO: Carregar sistema selecionado do localStorage
   useEffect(() => {
@@ -121,15 +102,10 @@ useEffect(() => {
       console.log("📤 Enviando simulação com equipamentos:", payload);
       console.log("🔥 FONTES ATIVAS:", fontesAtivas);
 
-      const response = await axios.post(
-        'http://localhost:8000/simulador/ciclo-24h',
-            payload,
-        {
-            headers: {
-             Authorization: `Bearer ${localStorage.getItem("token")}`
-            }
-         }
-    );
+      const response = await api.post(
+        "/simulador/ciclo-24h",
+        payload
+      );
 
       if (response.data) {
         setDados(response.data);
@@ -138,9 +114,17 @@ useEffect(() => {
         if (!resetar) setDia(prev => prev + 1);
       }
     } catch (error) {
-      console.error("❌ Erro ao conectar com o Python:", error);
-      alert("Erro na simulação. Verifique se o backend está rodando.");
+      console.error("❌ Erro ao simular:", error);
+
+      if (error.response?.status === 401) {
+        alert("Sessão expirada, faça login novamente");
+        localStorage.clear();
+        window.location.href = "/login";
+        return;
     }
+
+    alert("Erro na simulação");
+    } 
   };
 
   const resetarSimulacao = () => {
@@ -156,7 +140,7 @@ useEffect(() => {
   };
 
   // ✅ NOVO: Carregando estado
-  if (carregandoSistema || carregandoEquipamentos) {
+  if (carregandoSistema ) {
     return <div style={{ padding: '20px', textAlign: 'center' }}>Carregando...</div>;
   }
 
