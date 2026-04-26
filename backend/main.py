@@ -82,10 +82,10 @@ class SimuladorInput(BaseModel):
     equipamentos: List[EquipamentosUpdate]
     fontes_geracao: Optional[List[FonteGeracao]] = []
     carga_inicial_wh: Optional[float] = None
-    dias: int = Field(default=1, ge=1)
+    dia: int = Field(default=1, ge=1)
 
 class FonteEnergiaSchema(BaseModel):
-    user_id: int  # Opcional por enquanto para teste
+    user_id: Optional[int] = None  
     painel_watts: float
     tipo_controlador: str
     bateria_ah: int
@@ -173,8 +173,9 @@ def criar_fonte(
     count = db.query(FonteEnergiaDB).filter(
         FonteEnergiaDB.user_id == current_user.id
     ).count()
-
-    if plan.max_fontes is not None and count >= plan.max_fontes:
+    
+    limite = cast(Optional[int], plan.max_fontes)
+    if limite is not None and count >= limite:
         raise HTTPException(
             403,
             f"Plano {plan.nome} permite até {plan.max_fontes} fontes"
@@ -197,12 +198,8 @@ def criar_fonte(
 
     return nova_fonte
 
-# 1. Primeiro a rota de lista (Mais genérica)
-@app.get("/fontes/")
-def listar_todas_fontes(db: Session = Depends(get_db)):
-    return db.query(FonteEnergiaDB).all()
 
-# 2. Depois a rota por ID de Fonte (Específica)
+# 1. Depois a rota por ID de Fonte (Específica)
 @app.get("/fontes/")
 def listar_fontes(
     db: Session = Depends(get_db),
@@ -257,18 +254,21 @@ def post_simulacao(
 ):
     # 🔥 DEBUG (opcional)
     print("🔥 USER:", current_user.id)
-    print("🔥 FONTES RECEBIDAS:", params.fontes_geracao)
+    #print("🔥 FONTES RECEBIDAS:", params.fontes_geracao)
 
     # 🔢 1. LIMITE DE EXECUÇÕES (se existir)
     count = db.query(SimulationDB).filter(SimulationDB.user_id == current_user.id).count()
 
     limite = cast(Optional[int], plan.limite_simulacoes)
     max_dias = cast(Optional[int], plan.max_dias_simulacao)
+    print("PLANO:", plan.nome)
+    print("MAX_DIAS:", plan.max_dias_simulacao)
+    print("DIAS RECEBIDO:", params.dia)
 
     if limite is not None and count >= limite:
         raise HTTPException(403, "Limite de simulações atingido")
 
-    if max_dias is not None and params.dias > max_dias:
+    if max_dias is not None and params.dia > max_dias:
         raise HTTPException(403, "Limite de dias excedido")
     # 🔄 transforma dados
     lista_dicts = [eq.model_dump() for eq in params.equipamentos]
@@ -277,7 +277,7 @@ def post_simulacao(
         f.model_dump() for f in (params.fontes_geracao or [])
     ]
 
-    # ⚙️ execução da simulação
+    # ⚙️ execução da simulação 
     resultado = simular_dia_sequencial(
         potencia_painel_w=params.potencia_painel,
         capacidade_bateria_ah=params.bateria_ah,
@@ -296,6 +296,7 @@ def listar_equipamentos(
     db: Session = Depends(get_db),
     current_user: UserDB = Depends(get_current_user)
     ):
+    print("USER LOGADO:", current_user.id)
     return db.query(EquipamentoDB).filter(
         EquipamentoDB.user_id == current_user.id
         ).all()
@@ -320,7 +321,7 @@ def deletar_equipamento(
 
     return {"status": "sucesso"}
 
-# Atualizar equipamento (CORRIGIDO)
+# 
 @app.put("/equipamentos/{equipamento_id}")
 def atualizar_equipamento(
     equipamento_id: int,
@@ -350,8 +351,25 @@ def atualizar_equipamento(
 def criar_equipamento(
     dados: EquipamentosUpdate,
     db: Session = Depends(get_db),
-    current_user: UserDB = Depends(get_current_user)
+    current_user: UserDB = Depends(get_current_user),
+    plan: PlanDB = Depends(get_current_plan)
 ):
+    # 🔢 contar quantos já existem
+    count = db.query(EquipamentoDB).filter(
+        EquipamentoDB.user_id == current_user.id
+    ).count()
+
+    max_ep = cast(Optional[int], plan.max_equipamentos)
+
+
+    # 🚫 validar limite
+    if max_ep is not None and count >= int(max_ep):
+        raise HTTPException(
+            403,
+            f"Plano {plan.nome} permite até {max_ep} equipamentos"
+        )
+
+    # 💾 criar
     novo = EquipamentoDB(
         user_id=current_user.id,
         nome=dados.nome,
@@ -367,6 +385,7 @@ def criar_equipamento(
 
     return novo
 
+
 @app.post("/equipamentos/lote")
 def salvar_equipamentos(
     dados: InventarioSchema,
@@ -374,12 +393,16 @@ def salvar_equipamentos(
     current_user: UserDB = Depends(get_current_user),
     plan: PlanDB = Depends(get_current_plan)
 ):
-    # 🔢 valida limite
-    if plan.max_equipamentos is not None:
-        max_eq = cast(Optional[int], plan.max_equipamentos)
-        if max_eq is not None and len(dados.lista_equipamentos) > max_eq:
-            raise HTTPException(403, f"Plano {plan.nome} permite até {max_eq} equipamentos" )
-    
+    # quantos já existem
+    existentes = db.query(EquipamentoDB).filter(EquipamentoDB.user_id == current_user.id).count()
+
+    novos = len(dados.lista_equipamentos)
+
+    max_ep = cast(Optional[int], plan.max_equipamentos)
+
+    if max_ep is not None and (existentes + novos) > max_ep:
+        raise HTTPException( 403, f"Plano {plan.nome} permite até {plan.max_equipamentos} eqipamentos")
+
     # 💾 salva novos
     for item in dados.lista_equipamentos:
         novo_item = EquipamentoDB(

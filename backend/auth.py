@@ -1,6 +1,6 @@
 from re import sub
 from jose import JWTError, jwt
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone 
 from fastapi import HTTPException, Depends, APIRouter
 from fastapi.security import HTTPBearer
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -19,6 +19,8 @@ security = HTTPBearer()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
+
+# new Date(data).toLocaleStrinng("pt-BR") # não usar para regras de negócios stripe
 
 class UserCreate(BaseModel):
     nome: str
@@ -92,8 +94,10 @@ def register(data: UserCreate, db: Session = Depends(get_db)):
     sub = SubscriptionDB(
         user_id=novo_user.id,
         plan_id=plano_free.id,
-        status="active"
-    )
+        status="active",
+        current_period_start=datetime.now(timezone.utc),
+        current_period_end=datetime.now(timezone.utc) + timedelta(days=30)
+        )
 
     db.add(sub)
     db.commit() 

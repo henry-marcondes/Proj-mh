@@ -7,7 +7,7 @@ function Simulador() {
   const [dados, setDados] = useState([]);
   const [clima, setClima] = useState('sol');
   const [cargaAnterior, setCargaAnterior] = useState(null);
-  const [dia, setDia] = useState(0);
+  const [dia, setDias] = useState(0);
   const [fontesControle, setFontesControle] = useState([]);
   
   // Sistema selecionado
@@ -90,15 +90,20 @@ useEffect(() => {
         hora_inicio: f.hora_inicio,
         hora_fim: f.hora_fim
     }));
+
       // ✅ NOVO: Usar equipamentos dinâmicos
+        const proximoDia = resetar ? 1 : dia + 1;
+
       const payload = {
         potencia_painel: sistemaAtivo.painel_watts,
         bateria_ah: sistemaAtivo.bateria_ah,
         clima: clima,
         equipamentos: equipamentos,
-        fontes_geracao: fontesAtivas, // 🔥 NOVO
-        carga_inicial_wh: resetar ? null : (cargaAnterior || null)
-      };
+        fontes_geracao: fontesAtivas,
+        carga_inicial_wh: resetar ? null : (cargaAnterior || null),
+        dia: proximoDia // ✅ valor correto
+     };
+
       console.log("📤 Enviando simulação com equipamentos:", payload);
       console.log("🔥 FONTES ATIVAS:", fontesAtivas);
 
@@ -111,7 +116,7 @@ useEffect(() => {
         setDados(response.data);
         const ultimoPonto = response.data[response.data.length - 1];
         setCargaAnterior(ultimoPonto.bateria_wh_final);
-        if (!resetar) setDia(prev => prev + 1);
+        setDias(proximoDia);
       }
     } catch (error) {
       console.error("❌ Erro ao simular:", error);
@@ -128,7 +133,7 @@ useEffect(() => {
   };
 
   const resetarSimulacao = () => {
-    setDia(1);
+    setDias(1);
     setCargaAnterior(null);
     setDados([]);
   };

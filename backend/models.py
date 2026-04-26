@@ -1,4 +1,4 @@
-from sqlalchemy import JSON, Float, Column, Integer, String, Boolean, ForeignKey, JSON
+from sqlalchemy import JSON, Float, Column, Integer, String, Boolean, ForeignKey, JSON, DateTime, func 
 from sqlalchemy.orm import Mapped, mapped_column, relationship  
 from database import Base
 from enum import unique
@@ -47,7 +47,17 @@ class SubscriptionDB(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     plan_id = Column(Integer, ForeignKey("plans.id"))
 
-    status = Column(String)
+    status = Column(String),
+    
+    # 🕒 PERÍODO DA ASSINATURA
+    current_period_start = Column(DateTime, nullable=True)
+    current_period_end = Column(DateTime, nullable=True)
+
+    cancel_at_period_end = Column(Boolean, default=False)
+
+    # 🕒 CONTROLE AUTOMÁTICO
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
     user = relationship("UserDB", back_populates="subscriptions")
     plan = relationship("PlanDB", back_populates="subscriptions")

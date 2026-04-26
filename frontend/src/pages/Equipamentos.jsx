@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import api from '../services/api'; // ✅ usa o api central
+import api from '../services/api';
 
 function Equipamentos() {
 
@@ -7,7 +7,7 @@ function Equipamentos() {
   const [equipamentos, setEquipamentos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editandoId, setEditandoId] = useState(null);
-
+  const user = JSON.parse(localStorage.getItem("user") || "null");
   const [novoEquip, setNovoEquip] = useState({
     nome: '',
     watts: '',
@@ -19,8 +19,9 @@ function Equipamentos() {
   // ✅ CARREGAR EQUIPAMENTOS
   const carregarEquipamentos = async () => {
     try {
-      const res = await api.get('/equipamentos');
+      const res = await api.get('/equipamentos/');
       setEquipamentos(res.data);
+      console.log("📦 Resposta API:", res.data);
     } catch (error) {
       console.error("Erro ao carregar equipamentos:", error);
     } finally {
@@ -145,60 +146,164 @@ function Equipamentos() {
   return (
     <div style={{ maxWidth: '900px', margin: '0 auto', padding: '20px' }}>
       <h2>🔌 Equipamentos</h2>
-
+      <p>👤 Usuário: {user?.nome}</p>
       {/* FORM */}
-      <div style={{ marginBottom: '20px' }}>
+       <div style={{ backgroundColor: 'var(--card)', padding: '15px', borderRadius: '8px', marginBottom: '20px', display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+    <div>
+       <label style={{ fontWeight: 'bold', color: 'var(--text)', marginBottom: '5px', display: 'inline-block' }}>
+            Nome:
+          </label><br/>
         <input
           placeholder="Nome"
           value={novoEquip.nome}
           onChange={e => setNovoEquip({ ...novoEquip, nome: e.target.value })}
-        />
-
+        /> 
+      </div>
+      <div>
+          <label style={{ fontWeight: 'bold', color: 'var(--text)', marginBottom: '5px', display: 'inline-block' }}>
+            Watts:
+          </label><br/>
         <input
           type="number"
           placeholder="Watts"
           value={novoEquip.watts}
           onChange={e => setNovoEquip({ ...novoEquip, watts: e.target.value })}
         />
+      </div>
+      <div>
+          <label style={{ fontWeight: 'bold', color: 'var(--text)', marginBottom: '5px', display: 'inline-block' }}>
+            Inicio:
+          </label><br/>
+        <input 
+          type="number"
+          min="0"
+          max="23"
+          value={novoEquip.hora_inicio}
+          onChange={e => setNovoEquip({...novoEquip, hora_inicio: e.target.value})}
+        />
+      </div>
+      <div>
+          <label style={{ fontWeight: 'bold', color: 'var(--text)', marginBottom: '5px', display: 'inline-block' }}>
+            Fim:
+          </label><br/> 
+         <input 
+          type="number"
+          min="0"
+          max="23"
+          value={novoEquip.hora_fim}
+          onChange={e => setNovoEquip({...novoEquip, hora_fim: e.target.value})}
+         />
+      </div>
+       <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+          <input 
+            type="checkbox" 
+            checked={novoEquip.publico} 
+            onChange={e => setNovoEquip({...novoEquip, publico: e.target.checked})} 
+            id="publico"
+          />
+          <label htmlFor="publico" style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--text)' }}>
+            Compartilhar?
+          </label>
+        </div>
 
-        <button onClick={adicionarEquipamento}>
+
+        <button onClick={adicionarEquipamento}
+            style={{ backgroundColor: 'var(--primary)', color: 'card(--text)', border: 'none', padding: '8px 15px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
+
           + Adicionar
         </button>
       </div>
 
       {/* LISTA */}
-      {loading ? (
-        <p>Carregando...</p>
-      ) : (
-        equipamentos.map(e => (
-          <div key={e.id} style={{ marginBottom: '10px' }}>
-            {editandoId === e.id ? (
-              <>
+     {loading ? (
+  <p style={{ textAlign: 'center', color: 'var(--text)' }}>
+    Carregando equipamentos...
+  </p>
+) : equipamentos.length === 0 ? (
+  <p style={{ textAlign: 'center', color: 'var(--text)', padding: '20px' }}>
+    Nenhum equipamento registrado ainda.
+  </p>
+) : (
+  <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: 'var(--card)' }}>
+    <thead>
+      <tr style={{ borderBottom: '2px solid #333' }}>
+        <th style={{ color: 'var(--text)', textAlign: 'left', padding: '10px' }}>Equipamento</th>
+        <th style={{ color: 'var(--text)', textAlign: 'center', padding: '10px' }}>Watts</th>
+        <th style={{ color: 'var(--text)', textAlign: 'center', padding: '10px' }}>Uso</th>
+        <th style={{ color: 'var(--text)', textAlign: 'center', padding: '10px' }}>Ações</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      {equipamentos.map(e => (
+        <tr key={e.id} style={{ borderBottom: '1px solid #ddd' }}>
+
+          {editandoId === e.id ? (
+            <>
+              <td style={{ padding: '10px' }}>
                 <input
                   value={e.nome}
-                  onChange={ev => atualizarEquipamento(e.id, 'nome', ev.target.value)}
+                  onChange={evt => atualizarEquipamento(e.id, 'nome', evt.target.value)}
+                  style={{ width: '100%', padding: '5px' }}
                 />
+              </td>
 
+              <td style={{ textAlign: 'center' }}>
                 <input
                   type="number"
                   value={e.watts}
-                  onChange={ev => atualizarEquipamento(e.id, 'watts', ev.target.value)}
+                  onChange={evt => atualizarEquipamento(e.id, 'watts', evt.target.value)}
+                  style={{ width: '70px' }}
                 />
+              </td>
 
-                <button onClick={() => salvarEdicao(e.id)}>Salvar</button>
-                <button onClick={() => setEditandoId(null)}>Cancelar</button>
-              </>
-            ) : (
-              <>
-                {e.nome} - {e.watts}W
+              <td style={{ textAlign: 'center' }}>
+                <input
+                  type="number"
+                  value={e.hora_inicio}
+                  onChange={evt => atualizarEquipamento(e.id, 'hora_inicio', evt.target.value)}
+                  style={{ width: '50px' }}
+                />
+                <span> a </span>
+                <input
+                  type="number"
+                  value={e.hora_fim}
+                  onChange={evt => atualizarEquipamento(e.id, 'hora_fim', evt.target.value)}
+                  style={{ width: '50px' }}
+                />
+              </td>
 
-                <button onClick={() => setEditandoId(e.id)}>Editar</button>
-                <button onClick={() => removerEquipamento(e.id)}>Excluir</button>
-              </>
-            )}
-          </div>
-        ))
-      )}
+              <td style={{ textAlign: 'center' }}>
+                <button onClick={() => salvarEdicao(e.id)}>✅</button>
+                <button onClick={() => setEditandoId(null)}>❌</button>
+              </td>
+            </>
+          ) : (
+            <>
+              <td style={{ color: 'var(--text)', padding: '10px' }}>
+                {e.nome}
+              </td>
+
+              <td style={{ color: 'var(--text)', textAlign: 'center' }}>
+                {e.watts}W
+              </td>
+
+              <td style={{ color: 'var(--text)', textAlign: 'center' }}>
+                {e.hora_inicio}h às {e.hora_fim}h
+              </td>
+
+              <td style={{ textAlign: 'center' }}>
+                <button onClick={() => setEditandoId(e.id)}>✏️</button>
+                <button onClick={() => removerEquipamento(e.id)}>🗑️</button>
+              </td>
+            </>
+          )}
+
+        </tr>
+      ))}
+    </tbody>
+  </table>
+)} 
     </div>
   );
 }
