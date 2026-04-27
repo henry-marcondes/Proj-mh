@@ -1,4 +1,3 @@
-from re import sub
 from jose import JWTError, jwt
 from datetime import datetime, timedelta, timezone 
 from fastapi import HTTPException, Depends, APIRouter

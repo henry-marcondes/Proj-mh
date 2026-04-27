@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import except_
 from sqlalchemy.orm import Session
 from database import Base, SessionLocal,  criar_tabelas, engine
 from models import FonteEnergiaDB, EquipamentoDB, SimulationDB, UserDB, SubscriptionDB, PlanDB
@@ -358,9 +359,10 @@ def criar_equipamento(
     count = db.query(EquipamentoDB).filter(
         EquipamentoDB.user_id == current_user.id
     ).count()
+    print("DADOS RECEBIDOS",dados)
+    print("plan Recebido",plan)
 
     max_ep = cast(Optional[int], plan.max_equipamentos)
-
 
     # 🚫 validar limite
     if max_ep is not None and count >= int(max_ep):
@@ -378,10 +380,13 @@ def criar_equipamento(
         hora_fim=dados.hora_fim,
         publico=dados.publico
     )
-
-    db.add(novo)
-    db.commit()
-    db.refresh(novo)
+    try:
+        db.add(novo)
+        db.commit()
+        db.refresh(novo)
+    except Exception as e:
+        print("X ERRO AO SALVAR", str(e))
+        raise HTTPException(500,str(e))
 
     return novo
 

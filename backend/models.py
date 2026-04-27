@@ -47,7 +47,7 @@ class SubscriptionDB(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     plan_id = Column(Integer, ForeignKey("plans.id"))
 
-    status = Column(String),
+    status = Column(String)
     
     # 🕒 PERÍODO DA ASSINATURA
     current_period_start = Column(DateTime, nullable=True)
