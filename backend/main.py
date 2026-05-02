@@ -1,9 +1,8 @@
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import except_
 from sqlalchemy.orm import Session
-from database import Base, SessionLocal,  criar_tabelas, engine
+from database import Base, SessionLocal,  criar_tabelas 
 from models import FonteEnergiaDB, EquipamentoDB, SimulationDB, UserDB, SubscriptionDB, PlanDB
 from pydantic import BaseModel, EmailStr, Field
 from typing import List, Optional, cast
@@ -12,6 +11,7 @@ from calculo_solar import simular_dia_sequencial
 from services.plan_dependencies import get_current_plan
 from auth import get_current_user
 from auth import router as auth_router
+from services.subscription_service import get_user_subscription, limite_equipamentos
 
 
 @asynccontextmanager
@@ -103,64 +103,34 @@ class UserCreate(BaseModel):
     senha: str
 
 #------------------------User/login--------------------------
-@app.post("/users/")
-def criar_user(dados: UserCreate, db: Session = Depends(get_db)):
-    existente = db.query(UserDB).filter(UserDB.email == dados.email).first()
-    
-    if existente:
-        raise HTTPException(status_code=400, detail="Email já cadastrado")
 
-    novo_user = UserDB(
-        nome=dados.nome,
-        email=dados.email,
-        cpf=dados.cpf,
-        fone=dados.fone,
-        senha_hash=dados.senha
-    )
-    
-    try:
-        db.add(novo_user)
-        db.commit()
-        db.refresh(novo_user)
-    except Exception as e:
-        db.rollback()
-        print("Erro USER: ",e)
-        raise HTTPException(status_code=500, detail=str(e))
+@app.get("/auth/me")
+def me(
+    current_user: UserDB = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    sub = db.query(SubscriptionDB).filter(
+        SubscriptionDB.user_id == current_user.id
+    ).order_by(SubscriptionDB.created_at.desc()).first()
 
-    # 🔥 pegar plano FREE
-    plano_free = db.query(PlanDB).filter(PlanDB.nome == "FREE").first()
+    plano_nome = None
+    print("STATUS = ", sub.status)
+    stat = cast(Optional[str], sub.status)
 
-    if not plano_free:
-        raise HTTPException(status_code=500, detail="Plano FREE não encontrado")
+    if sub and stat == "active":
+        plan = db.query(PlanDB).filter(
+            PlanDB.id == sub.plan_id
+        ).first()
 
-    # 🔥 criar assinatura
-    sub = SubscriptionDB(
-        user_id=novo_user.id,
-        plan_id=plano_free.id,
-        status="active"
-    )
-    try:
-        db.add(sub)
-        db.commit()
-    except Exception as e:
-        db.rollback()
-        print("ERRO SUB: ",e)
-        raise HTTPException(status_code=500, detail= str(e))
+        if plan:
+            plano_nome = plan.nome
 
-    return novo_user 
-
-@app.post("/login")
-def login(dados: dict, db: Session = Depends(get_db)):
-    # Busca por e-mail ou CPF
-    cliente = db.query(UserDB).filter(
-        (UserDB.email == dados.get("identificador")) | 
-        (UserDB.cpf == dados.get("identificador"))
-    ).first()
-
-    if not cliente:
-        raise HTTPException(status_code=404, detail="Usuário não encontrado")
-    
-    return {"id": cliente.id, "nome": cliente.nome}
+    return {
+        "id": current_user.id,
+        "nome": current_user.nome,
+        "email": current_user.email,
+        "plano": plano_nome  # ✅ agora vem do lugar certo
+    }
 
 #-------------------------Fontes--------------------------------
 @app.post("/fontes/")
@@ -359,8 +329,14 @@ def criar_equipamento(
     count = db.query(EquipamentoDB).filter(
         EquipamentoDB.user_id == current_user.id
     ).count()
-    print("DADOS RECEBIDOS",dados)
-    print("plan Recebido",plan)
+    print("DADOS RECEBIDOS",dados) # DEBUG
+    print("Recebido Plan",plan)    # DEBUG
+
+    sub = get_user_subscription(db, current_user.id)
+    limite = limite_equipamentos(sub.plan.nome)
+    print("Plano:", sub.plan.nome)          # DEBUG
+    print("Limite permitido:", limite)      # DEBUG
+
 
     max_ep = cast(Optional[int], plan.max_equipamentos)
 
@@ -427,7 +403,8 @@ def salvar_equipamentos(
         "salvos": len(dados.lista_equipamentos)
     }
 
-#------------------------------UI /docs Tema Escuro-------------------------------------------
+
+#------------------------------UI /docs Tema Escuro------------------------------------
 @app.get("/docs", include_in_schema=False)
 def custom_swagger_ui_html():
     return HTMLResponse("""

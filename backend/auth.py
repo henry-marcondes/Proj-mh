@@ -1,4 +1,5 @@
 from jose import JWTError, jwt
+from services.subscription_service import criar_assinatura_free
 from datetime import datetime, timedelta, timezone 
 from fastapi import HTTPException, Depends, APIRouter
 from fastapi.security import HTTPBearer
@@ -84,23 +85,7 @@ def register(data: UserCreate, db: Session = Depends(get_db)):
     db.refresh(novo_user)
 
     # Buscar plano free
-    plano_free = db.query(PlanDB).filter(PlanDB.nome == "FREE").first()
-
-    if not plano_free:
-        raise HTTPException(status_code=500, detail="Plano FREE não encontrado")
-
-    # 🔗 Cria subscription
-    sub = SubscriptionDB(
-        user_id=novo_user.id,
-        plan_id=plano_free.id,
-        status="active",
-        current_period_start=datetime.now(timezone.utc),
-        current_period_end=datetime.now(timezone.utc) + timedelta(days=30)
-        )
-
-    db.add(sub)
-    db.commit() 
-
+    criar_assinatura_free(db, novo_user.id) # Busca assinatura em service/subscription_service.py
     token = criar_token(novo_user.id)
 
     return {

@@ -35,11 +35,11 @@ def get_current_plan(
     sub = db.query(SubscriptionDB).filter(
         SubscriptionDB.user_id == current_user.id
     ).order_by(SubscriptionDB.created_at.desc()).first()
-    print("CARREGA get_current_plan: sub= ",sub)
+
     if not sub:
         raise HTTPException(403, "Usuário sem assinatura")
 
-    if sub.status != "active":
+    if sub.status.strip().lower() != "active":
         raise HTTPException(403, "Assinatura inativa")
 
     plan = db.query(PlanDB).filter(

@@ -38,7 +38,8 @@ class PlanDB(Base):
 
     stripe_price_id = Column(String)
 
-    subscriptions = relationship("SubscriptionDB", back_populates="plan")
+    subscriptions = relationship("SubscriptionDB", back_populates="plan"
+                                 )
 # 💳 ASSINATURA 
 class SubscriptionDB(Base):
     __tablename__ = "subscriptions"
@@ -46,15 +47,11 @@ class SubscriptionDB(Base):
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"))
     plan_id = Column(Integer, ForeignKey("plans.id"))
-
     status = Column(String)
-    
     # 🕒 PERÍODO DA ASSINATURA
     current_period_start = Column(DateTime, nullable=True)
     current_period_end = Column(DateTime, nullable=True)
-
     cancel_at_period_end = Column(Boolean, default=False)
-
     # 🕒 CONTROLE AUTOMÁTICO
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())

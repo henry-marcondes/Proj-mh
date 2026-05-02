@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from database import SessionLocal, get_db
+from database import get_db
 from models import EquipamentoDB
+from services.subscription_service import limite_equipamentos
 
 router = APIRouter()
 

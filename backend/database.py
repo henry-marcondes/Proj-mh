@@ -2,8 +2,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base 
 import time
 from sqlalchemy.exc import OperationalError
-
-DATABASE_URL = "postgresql://admin:password123@db:5432/solar_motorhome"
+                                                                         # usar @localhost para testa backend
+DATABASE_URL = "postgresql://admin:password123@db:5432/solar_motorhome" # original @db executa no docker-compose
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
