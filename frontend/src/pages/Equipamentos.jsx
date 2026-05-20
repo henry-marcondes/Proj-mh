@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
+import { useContext } from "react";
+import { AuthContext } from "../context/AuthContext";
 
 function Equipamentos() {
 
   // ✅ ESTADOS
   const [equipamentos, setEquipamentos] = useState([]);
+  const { user } = useContext(AuthContext);
   const [loading, setLoading] = useState(true);
   const [editandoId, setEditandoId] = useState(null);
-  const user = JSON.parse(localStorage.getItem("user") || "null");
+  //const user = JSON.parse(localStorage.getItem("user") || "null");
   const [novoEquip, setNovoEquip] = useState({
     nome: '',
     watts: '',
@@ -52,6 +55,8 @@ function Equipamentos() {
   };
 
   // ✅ ADICIONAR
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [upgradeMsg, setUpgradeMsg] = useState("");
   const adicionarEquipamento = async () => {
     if (!validarEquipamento(novoEquip)) return;
 
@@ -77,11 +82,21 @@ function Equipamentos() {
       });
 
       alert("✅ Equipamento adicionado");
-    } catch (error) {
-      console.error(error);
-      alert("Erro ao adicionar");
+    } 
+      catch (error) {
+  console.error(error);
+
+  if (error.response?.status === 403) {
+    const msg = error.response.data.detail;
+      console.log("MSG BACKEND", msg);  // DEBUG
+
+      setUpgradeMsg(msg);
+      setShowUpgradeModal(true);
+    } else {
+      alert(msg);
     }
-  };
+      }
+};
 
   // ✅ DELETAR
   const removerEquipamento = async (id) => {
@@ -98,7 +113,7 @@ function Equipamentos() {
       alert("Erro ao deletar");
     }
   };
-
+  
   // ✅ EDITAR
   const salvarEdicao = async (id) => {
     const equip = equipamentos.find(e => e.id === id);
@@ -141,6 +156,24 @@ function Equipamentos() {
           : e
       )
     );
+  };
+
+  // ✅ Upgrade do Plano
+  const fazerUpgrade = async () => {
+    try {
+      const response = await api.post('/payment/checkout', {
+        plan: "PRO", // depois podemos dinamizar
+        user_id: user.id
+     });
+
+    const checkoutUrl = response.data.checkout_url;
+
+    window.location.href = checkoutUrl;
+
+    } catch (error) {
+      console.error(error);
+      alert("Erro ao iniciar pagamento");
+    }
   };
 
   return (
@@ -303,9 +336,71 @@ function Equipamentos() {
       ))}
     </tbody>
   </table>
-)} 
+)}
+{showUpgradeModal && (
+  <div style={{
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 999
+  }}>
+    <div style={{
+      backgroundColor: 'var(--card)',
+      padding: '25px',
+      borderRadius: '10px',
+      width: '350px',
+      textAlign: 'center',
+      boxShadow: '0 5px 20px rgba(0,0,0,0.3)'
+    }}>
+      
+      <h3 style={{ color: 'var(--text)' }}>🚀 Upgrade Necessário</h3>
+      
+      <p style={{ color: 'var(--text)', margin: '15px 0' }}>
+        {upgradeMsg}
+      </p>
+
+      <button
+        onClick={fazerUpgrade}
+        style={{
+          backgroundColor: 'var(--primary)',
+          color: '#fff',
+          border: 'none',
+          padding: '10px 15px',
+          borderRadius: '5px',
+          cursor: 'pointer',
+          fontWeight: 'bold',
+          marginBottom: '10px'
+        }}
+      >
+        Fazer upgrade 🚀
+      </button>
+
+      <br />
+
+      <button
+        onClick={() => setShowUpgradeModal(false)}
+        style={{
+          backgroundColor: 'transparent',
+          color: 'var(--text)',
+          border: 'none',
+          cursor: 'pointer'
+        }}
+      >
+        Fechar
+      </button>
+
+    </div>
+  </div>
+)}
     </div>
   );
+
 }
 
 export default Equipamentos;

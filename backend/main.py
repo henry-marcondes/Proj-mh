@@ -12,6 +12,7 @@ from services.plan_dependencies import get_current_plan
 from auth import get_current_user
 from auth import router as auth_router
 from services.subscription_service import get_user_subscription, limite_equipamentos
+from routes import payment
 
 
 @asynccontextmanager
@@ -37,6 +38,7 @@ app.add_middleware(
 )
 
 app.include_router(auth_router)
+app.include_router(payment.router)
 
 # Dependência para abrir/fechar conexão com o banco
 def get_db():
@@ -103,6 +105,9 @@ class UserCreate(BaseModel):
     senha: str
 
 #------------------------User/login--------------------------
+@app.get("/ping")
+def ping():
+    return {"msg": "pong"}
 
 @app.get("/auth/me")
 def me(
@@ -329,23 +334,32 @@ def criar_equipamento(
     count = db.query(EquipamentoDB).filter(
         EquipamentoDB.user_id == current_user.id
     ).count()
-    print("DADOS RECEBIDOS",dados) # DEBUG
-    print("Recebido Plan",plan)    # DEBUG
+
+    print("DADOS RECEBIDOS",dados)      # DEBUG
 
     sub = get_user_subscription(db, current_user.id)
     limite = limite_equipamentos(sub.plan.nome)
+
     print("Plano:", sub.plan.nome)          # DEBUG
     print("Limite permitido:", limite)      # DEBUG
+    print("COUNT EQUIPAMENTOS", count)      # DEBUG
+
+    if count >= limite:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Plano {sub.plan.nome} permite até {limite} equipamentos"
+        )
 
 
-    max_ep = cast(Optional[int], plan.max_equipamentos)
+
+    #max_ep = cast(Optional[int], plan.max_equipamentos)
 
     # 🚫 validar limite
-    if max_ep is not None and count >= int(max_ep):
-        raise HTTPException(
-            403,
-            f"Plano {plan.nome} permite até {max_ep} equipamentos"
-        )
+    #if max_ep is not None and count >= int(max_ep):
+    #   raise HTTPException(
+    #        403,
+    #       f"Plano {plan.nome} permite até {max_ep} equipamentos"
+    #   )
 
     # 💾 criar
     novo = EquipamentoDB(

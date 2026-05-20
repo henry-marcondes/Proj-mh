@@ -16,6 +16,8 @@ import AdminEquipamentos from './Admin/AdminEquipamentos';
 import MeusProjetos from "./MeusProjetos";
 import Perfil from "./Perfil";
 import Cadastro from "./Cadastro";
+import Success from "./Success";
+import Cancel from "./Cancel";
 
 import { AuthProvider, AuthContext } from "../context/AuthContext";
 import PrivateRoute from "../routes/PrivateRoute";
@@ -131,6 +133,8 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/painelcontrole" element={<PainelControle />} />
             <Route path="/meus-projetos" element={<MeusProjetos />} />
+            <Route path="/success" element={<Success />} />
+            <Route path="/cancel" element={<Cancel />} />
 
             <Route path="/perfil" element={
               <PrivateRoute><Perfil /></PrivateRoute>

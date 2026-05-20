@@ -20,6 +20,9 @@ services:
     restart: always
     ports:
       - "8000:8000"
+    env_file:
+      - .env 
+
     environment:
       DATABASE_URL: postgresql://admin:password123@db:5432/solar_motorhome
     depends_on:
