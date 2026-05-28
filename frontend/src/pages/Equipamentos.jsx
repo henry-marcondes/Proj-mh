@@ -159,10 +159,10 @@ function Equipamentos() {
   };
 
   // ✅ Upgrade do Plano
-  const fazerUpgrade = async () => {
+  const fazerUpgrade = async (plan) => {
     try {
       const response = await api.post('/payment/checkout', {
-        plan: "PRO", // depois podemos dinamizar
+        plan: plan, // depois podemos dinamizar
         user_id: user.id
      });
 
@@ -366,7 +366,7 @@ function Equipamentos() {
       </p>
 
       <button
-        onClick={fazerUpgrade}
+        onClick={() => fazerUpgrade("BASIC")}
         style={{
           backgroundColor: 'var(--primary)',
           color: '#fff',
@@ -378,7 +378,22 @@ function Equipamentos() {
           marginBottom: '10px'
         }}
       >
-        Fazer upgrade 🚀
+        BASIC 🚀
+      </button>
+
+      <button
+        onClick={() => fazerUpgrade("PRO")}
+        style={{
+         backgroundColor: 'var(--primary)',
+         color: '#fff',
+         border: 'none',
+         padding: '10px 15px',
+         borderRadius: '5px',
+         cursor: 'pointer',
+         fontWeight: 'bold'
+        }}
+       >
+        PRO 🚀
       </button>
 
       <br />

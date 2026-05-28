@@ -19,7 +19,7 @@ class CheckoutRequest(BaseModel):
     user_id: int 
 
 PRICE_IDS = {
-        "BASIC": "price_1TMFifGqtDweu1Ea1FIaCTK",
+        "BASIC": "price_1TMFifGqtDweu1Ea1FIaCTKv",
         "PRO": "price_1TMZrEGqtDweu1EaE9TbVmll" 
         }
 
@@ -33,7 +33,8 @@ def create_checkout(data: CheckoutRequest):
         raise HTTPException(status_code=400, detail="Plano inválido")
   
     try:
-
+        print("PLANO RECEBIDO:", data.plan)
+        print("PRICE_IDS:", PRICE_IDS)
         session = stripe.checkout.Session.create(
             payment_method_types=["card"],
 
@@ -60,4 +61,10 @@ def create_checkout(data: CheckoutRequest):
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print("ERRO STRIPE:")
+        print(e)
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )

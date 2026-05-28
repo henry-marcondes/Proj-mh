@@ -31,6 +31,7 @@ def limite_equipamentos(plano: str) -> int:
 
 def get_user_subscription(db, user_id: int):
 
+    print("USER_ID RECEBIDO", user_id)  # DEBUG
     sub = db.query(SubscriptionDB).filter(
         SubscriptionDB.user_id == user_id
     ).order_by(SubscriptionDB.created_at.desc()).first()
@@ -41,6 +42,6 @@ def get_user_subscription(db, user_id: int):
     if sub.status.strip().lower() != "active":
         raise HTTPException(403, "Assinatura inativa")
 
-    print("OBJETO SUB : ", sub)    # DEBUG
+    print("SUB ENCONTRADA : ", sub)    # DEBUG
 
     return sub

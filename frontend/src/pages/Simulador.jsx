@@ -38,7 +38,7 @@ function Simulador() {
         // ✅ NOVO: Depois que carrega o sistema, carrega os equipamentos
         carregarEquipamentos();
       } catch (erro) {
-        console.error("�� Erro ao carregar sistema:", erro);
+        console.error(" Erro ao carregar sistema:", erro);
         setCarregandoSistema(false);
       }
     } else {

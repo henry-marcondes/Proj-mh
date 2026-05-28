@@ -120,6 +120,9 @@ const buttonSimularStyle = {
   }, []);
 
   // 💾 salvar
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [upgradeMsg, setUpgradeMsg] = useState("");
+
   const handleSalvar = async () => {
     try {
       const payload = {
@@ -143,7 +146,13 @@ const buttonSimularStyle = {
 
             console.log("📩 Erro backend:", error.response?.data);
 
-            setStatus("❌ Erro ao salvar");
+            if (error.response?.status === 403) {
+              const msg = error.response.data.detail;
+              setUpgradeMsg(msg);
+              setShowUpgradeModal(true);
+            } else { setStatus("❌ Erro ao salvar");} 
+
+            //setStatus("❌ Erro ao salvar");
      } 
 };
 
@@ -153,6 +162,25 @@ const buttonSimularStyle = {
     localStorage.setItem("sistemaSimulacao", JSON.stringify(fonte));
     setStatus(`Sistema #${fonte.id} selecionado`);
   };
+
+ // ✅ Upgrade do Plano
+  const fazerUpgrade = async (plan) => {
+    try {
+      const response = await api.post('/payment/checkout', {
+        plan: plan, // depois podemos dinamizar
+        user_id: user.id
+     });
+
+    const checkoutUrl = response.data.checkout_url;
+
+    window.location.href = checkoutUrl;
+
+    } catch (error) {
+      console.error(error);
+      alert("Erro ao iniciar pagamento");
+    }
+  };
+
 
   return (
       
@@ -169,7 +197,7 @@ const buttonSimularStyle = {
                             onChange={e => handleNumberChange('bateria_ah', e.target.value)} />
                         
                         <label>Tipo:</label>
-                        <select style={inputStyle} value={fontes.bateria_tipo} onChange={e => setFontes({...fontes, bateria_tipo: e.target.value})}>
+                        <select style={fieldsetStyle} value={fontes.bateria_tipo} onChange={e => setFontes({...fontes, bateria_tipo: e.target.value})}>
                             <option value="Litio">Lítio</option>
                             <option value="Estacionaria">Estacionária</option>
                         </select>
@@ -182,7 +210,7 @@ const buttonSimularStyle = {
                             onChange={e => handleNumberChange('painel_watts', e.target.value)} />
                         
                         <label>Controlador:</label>
-                        <select style={inputStyle} value={fontes.tipo_controlador} onChange={e => setFontes({...fontes, tipo_controlador: e.target.value})}>
+                        <select style={fieldsetStyle} value={fontes.tipo_controlador} onChange={e => setFontes({...fontes, tipo_controlador: e.target.value})}>
                             <option value="MPPT">MPPT</option>
                             <option value="PWM">PWM</option>
                         </select>
@@ -205,7 +233,7 @@ const buttonSimularStyle = {
                         <legend>🌎 Visibilidade</legend>
                         <label>Tornar esta configuração pública?</label>
                         <select 
-                            style={inputStyle} 
+      style={fieldsetStyle} 
                             value={fontes.publico ? "true" : "false"}
                             onChange={e => setFontes({...fontes, publico: e.target.value === "true"})} >
                             <option value="true">Sim, compartilhar com a comunidade</option>
@@ -250,8 +278,88 @@ const buttonSimularStyle = {
                     ))
                 )}
             </div>
+
+{showUpgradeModal && (
+  <div style={{
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 999
+  }}>
+    <div style={{
+      backgroundColor: 'var(--card)',
+      padding: '25px',
+      borderRadius: '10px',
+      width: '350px',
+      textAlign: 'center',
+      boxShadow: '0 5px 20px rgba(0,0,0,0.3)'
+    }}>
+      
+      <h3 style={{ color: 'var(--text)' }}>🚀 Upgrade Necessário</h3>
+      
+      <p style={{ color: 'var(--text)', margin: '15px 0' }}>
+        {upgradeMsg}
+      </p>
+
+      <button
+        onClick={() => fazerUpgrade("BASIC")}
+        style={{
+          backgroundColor: 'var(--primary)',
+          color: '#fff',
+          border: 'none',
+          padding: '10px 15px',
+          borderRadius: '5px',
+          cursor: 'pointer',
+          fontWeight: 'bold',
+          marginBottom: '10px',
+          marginRight: '10px'
+        }}
+      >
+        BASIC 🚀
+      </button>
+
+      <button
+        onClick={() => fazerUpgrade("PRO")}
+        style={{
+         backgroundColor: 'var(--primary)',
+         color: '#fff',
+         border: 'none',
+         padding: '10px 15px',
+         borderRadius: '5px',
+         cursor: 'pointer',
+         fontWeight: 'bold'
+        }}
+       >
+       PRO 🚀
+      </button>
+
+      <br />
+    
+      <button
+        onClick={() => setShowUpgradeModal(false)}
+        style={{
+          backgroundColor: 'transparent',
+          color: 'var(--text)',
+          border: 'none',
+          cursor: 'pointer'
+        }}
+      >
+        Fechar
+      </button>
+
+    </div>
+  </div>
+)}
         </div>
+
   );
 }
+
 
 export default FontesEnergia;

@@ -350,17 +350,6 @@ def criar_equipamento(
             detail=f"Plano {sub.plan.nome} permite até {limite} equipamentos"
         )
 
-
-
-    #max_ep = cast(Optional[int], plan.max_equipamentos)
-
-    # 🚫 validar limite
-    #if max_ep is not None and count >= int(max_ep):
-    #   raise HTTPException(
-    #        403,
-    #       f"Plano {plan.nome} permite até {max_ep} equipamentos"
-    #   )
-
     # 💾 criar
     novo = EquipamentoDB(
         user_id=current_user.id,

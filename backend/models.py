@@ -1,4 +1,4 @@
-from sqlalchemy import JSON, Float, Column, Integer, String, Boolean, ForeignKey, JSON, DateTime, func 
+from sqlalchemy import JSON, Float, Numeric, Column, Integer, String, Boolean, ForeignKey, JSON, DateTime, func 
 from sqlalchemy.orm import Mapped, mapped_column, relationship  
 from database import Base
 from enum import unique
@@ -25,7 +25,7 @@ class PlanDB(Base):
 
     id = Column(Integer, primary_key=True)
     nome = Column(String)
-    preco = Column(Integer)
+    preco = Column(Numeric(precision=10, scale=2))
 
     limite_simulacoes = Column(Integer)
     permite_salvar = Column(Boolean)

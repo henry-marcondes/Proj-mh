@@ -3,7 +3,6 @@ import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import ToggleTheme from '../context/ToggleTheme.jsx';
 import axios from 'axios';
 
-import CadastroCliente from './CadastroCliente';
 import Equipamentos from './Equipamentos.jsx';
 import FontesEnergia from './FontesEnergia';
 import Simulador from './Simulador';
@@ -19,7 +18,7 @@ import Cadastro from "./Cadastro";
 import Success from "./Success";
 import Cancel from "./Cancel";
 
-import { AuthProvider, AuthContext } from "../context/AuthContext";
+import {AuthContext } from "../context/AuthContext";
 import PrivateRoute from "../routes/PrivateRoute";
 import Dashboard from './Dashboard.jsx';
 
@@ -92,17 +91,36 @@ function App() {
                   <button onClick={logout}>Sair</button>
                 </>
               ) : (
-                <Link to="/login">🔑 Login</Link>
+                <Link to="/login"
+                 onClick={() => setMenuAberto(false)}>
+              🔑 Login</Link>
+
               )}
 
-              <Link to="/meus-projetos">📁 Meus Projetos</Link>
-              <Link to="/perfil">👤 Perfil</Link>
-              <Link to="/">📊 Simulador</Link>
-              <Link to="/cadastro">👤 Cadastro</Link>
-              <Link to="/fontes">⚡ Fontes</Link>
-              <Link to="/equipamentos">🔌 Equipamentos</Link>
-              <Link to="/painelcontrole">📄 Painel Controle</Link>
-              <Link to="/admin">🔐 Admin</Link>
+              <Link to="/meus-projetos"
+                onClick={() => setMenuAberto(false)}>
+              📁 Meus Projetos</Link>
+              <Link to="/perfil"
+                onClick={() => setMenuAberto(false)}>
+              👤 Perfil</Link>
+              <Link to="/"
+                onClick={() => setMenuAberto(false)}>
+              📊 Simulador</Link>
+              <Link to="/cadastro"
+                onClick={() => setMenuAberto(false)}>
+              👤 Cadastro</Link>
+              <Link to="/fontes"
+                onClick={() => setMenuAberto(false)}>
+              ⚡ Fontes</Link>
+              <Link to="/equipamentos"
+                onClick={() => setMenuAberto(false)}>
+              🔌 Equipamentos</Link>
+              <Link to="/painelcontrole"
+                onClick={() => setMenuAberto(false)}>
+              📄 Painel Controle</Link>
+              <Link to="/admin"
+                onClick={() => setMenuAberto(false)}>
+              🔐 Admin</Link>
             </div>
           )}
         </div>
