@@ -37,12 +37,28 @@ function CadastroCliente() {
 
   return (
     <form onSubmit={handleSubmit}>
-      <input placeholder="Nome" onChange={e => setFormData({...formData, nome: e.target.value})} />
-      <input placeholder="Email" onChange={e => setFormData({...formData, email: e.target.value})} />
-      <input placeholder="CPF" onChange={e => setFormData({...formData, cpf: e.target.value})} />
-      <input placeholder="Fone" onChange={e => setFormData({...formData, fone: e.target.value})} />
-      <input type="password" placeholder="Senha" onChange={e => setFormData({...formData, senha: e.target.value})} />
-      <button type="submit">Cadastrar</button>
+    <h2 style={{ textAlign: 'center' }}>👤 Cadastro </h2>
+      <input placeholder="Nome" onChange={e => setFormData({...formData, nome: e.target.value})}
+          style={{ padding: '10px', borderRadius: '4px', border: '1px solid #ddd' }} />
+      <input placeholder="Email" onChange={e => setFormData({...formData, email: e.target.value})} 
+          style={{ padding: '10px', borderRadius: '4px', border: '1px solid #ddd' }} />
+      <input placeholder="CPF" onChange={e => setFormData({...formData, cpf: e.target.value})} 
+          style={{ padding: '10px', borderRadius: '4px', border: '1px solid #ddd' }} />
+      <input placeholder="Fone" onChange={e => setFormData({...formData, fone: e.target.value})} 
+          style={{ padding: '10px', borderRadius: '4px', border: '1px solid #ddd' }} />
+      <input type="password" placeholder="Senha" onChange={e => setFormData({...formData, senha: e.target.value})} 
+          style={{ padding: '10px', borderRadius: '4px', border: '1px solid #ddd' }} />
+      <button type="submit" 
+              style={{ 
+                padding: '10px', 
+                backgroundColor: '#007bff', 
+                color: 'white', 
+                border: 'none', 
+                borderRadius: '4px', 
+                cursor: 'pointer',
+                fontWeight: 'bold' 
+              }}
+                >Cadastrar</button>
     </form>
   );
 }

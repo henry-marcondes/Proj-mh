@@ -48,10 +48,17 @@ class SubscriptionDB(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     plan_id = Column(Integer, ForeignKey("plans.id"))
     status = Column(String)
+
+    # 🕒 DADOS DA ASSINATURA
+    stripe_customer_id = Column(String) 
+    stripe_subscription_id = Column(String)
+    stripe_price_id = Column(String) 
+
     # 🕒 PERÍODO DA ASSINATURA
     current_period_start = Column(DateTime, nullable=True)
     current_period_end = Column(DateTime, nullable=True)
     cancel_at_period_end = Column(Boolean, default=False)
+
     # 🕒 CONTROLE AUTOMÁTICO
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
